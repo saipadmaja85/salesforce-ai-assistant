@@ -1,12 +1,51 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from dotenv import load_dotenv
+
+import firebase_admin
+from firebase_admin import credentials, auth
+
 import os
+import json
 
 load_dotenv()
 
+# --------------------------------------------------
+# Firebase Admin
+# --------------------------------------------------
+
+firebase_service_account = os.getenv(
+    "FIREBASE_SERVICE_ACCOUNT_JSON"
+)
+
+if not firebase_service_account:
+    raise RuntimeError(
+        "FIREBASE_SERVICE_ACCOUNT_JSON is not configured"
+    )
+
+try:
+    firebase_service_account_info = json.loads(
+        firebase_service_account
+    )
+
+    firebase_admin.initialize_app(
+        credentials.Certificate(
+            firebase_service_account_info
+        )
+    )
+
+except Exception as error:
+    print("Firebase initialization error:", error)
+    raise
+
+
+# --------------------------------------------------
+# FastAPI
+# --------------------------------------------------
+
 app = FastAPI()
+
 
 # --------------------------------------------------
 # CORS
@@ -24,33 +63,113 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # --------------------------------------------------
 # OpenAI Client
 # --------------------------------------------------
 
+openai_api_key = os.getenv("OPENAI_API_KEY")
+
+if not openai_api_key:
+    raise RuntimeError(
+        "OPENAI_API_KEY is not configured"
+    )
+
 client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
+    api_key=openai_api_key
 )
+
+
+# --------------------------------------------------
+# Firebase Authentication
+# --------------------------------------------------
+
+def verify_user(authorization: str | None):
+
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required."
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication format."
+        )
+
+    id_token = authorization.split(
+        " ",
+        1
+    )[1]
+
+    if not id_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication token is missing."
+        )
+
+    try:
+
+        decoded_token = auth.verify_id_token(
+            id_token
+        )
+
+        uid = decoded_token.get("uid")
+
+        if not uid:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid authentication token."
+            )
+
+        return uid
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+
+        print(
+            "Firebase token verification error:",
+            error
+        )
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication token."
+        )
+
 
 # --------------------------------------------------
 # AI Illustration
 # --------------------------------------------------
 
 def generate_illustration(prompt):
+
     try:
+
         result = client.images.generate(
             model="gpt-image-2",
             prompt=prompt,
             size="1024x1024",
         )
 
-        if result.data and result.data[0].b64_json:
+        if (
+            result.data
+            and result.data[0].b64_json
+        ):
             return result.data[0].b64_json
 
         return None
 
     except Exception as error:
-        print("Image generation error:", error)
+
+        print(
+            "Image generation error:",
+            error
+        )
+
         return None
 
 
@@ -60,8 +179,10 @@ def generate_illustration(prompt):
 
 @app.get("/")
 def home():
+
     return {
-        "message": "Salesforce AI Assistant backend is running"
+        "message":
+        "Salesforce AI Assistant backend is running"
     }
 
 
@@ -70,13 +191,39 @@ def home():
 # --------------------------------------------------
 
 @app.post("/chat")
-def chat(data: dict):
+def chat(
+    data: dict,
+    authorization: str | None = Header(
+        default=None
+    )
+):
 
-    question = data.get("question", "")
+    # --------------------------------------------------
+    # Verify Firebase User
+    # --------------------------------------------------
+
+    uid = verify_user(
+        authorization
+    )
+
+    print(
+        f"Authenticated Firebase user: {uid}"
+    )
+
+    # --------------------------------------------------
+    # Get Question
+    # --------------------------------------------------
+
+    question = data.get(
+        "question",
+        ""
+    )
 
     if not question.strip():
+
         return {
-            "answer": "Please enter a question.",
+            "answer":
+            "Please enter a question.",
             "illustration": None
         }
 
@@ -87,6 +234,7 @@ def chat(data: dict):
         # --------------------------------------------------
 
         response = client.responses.create(
+
             model="gpt-5.6-luna",
 
             instructions="""
@@ -252,6 +400,7 @@ For Salesforce implementation questions:
 6. Explain what to configure.
 
 7. Mention the relevant:
+
    - Object
    - Field
    - Flow
@@ -457,7 +606,7 @@ Focus on solving the user's actual question.
         answer = response.output_text
 
         # --------------------------------------------------
-        # Generate a relevant educational illustration
+        # Generate Relevant Educational Illustration
         # --------------------------------------------------
 
         illustration_prompt = f"""
@@ -511,9 +660,13 @@ and documentation.
 
     except Exception as error:
 
-        print("Chat error:", error)
+        print(
+            "Chat error:",
+            error
+        )
 
         return {
-            "answer": "The AI assistant encountered an error while processing your question.",
+            "answer":
+            "The AI assistant encountered an error while processing your question.",
             "illustration": None
         }
