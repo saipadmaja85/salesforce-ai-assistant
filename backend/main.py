@@ -8,25 +8,31 @@ from firebase_admin import credentials, auth
 
 import os
 import json
+import base64
 
 load_dotenv()
+
 
 # --------------------------------------------------
 # Firebase Admin
 # --------------------------------------------------
 
-firebase_service_account = os.getenv(
-    "FIREBASE_SERVICE_ACCOUNT_JSON"
+firebase_service_account_b64 = os.getenv(
+    "FIREBASE_SERVICE_ACCOUNT_B64"
 )
 
-if not firebase_service_account:
+if not firebase_service_account_b64:
     raise RuntimeError(
-        "FIREBASE_SERVICE_ACCOUNT_JSON is not configured"
+        "FIREBASE_SERVICE_ACCOUNT_B64 is not configured"
     )
 
 try:
+    firebase_service_account_json = base64.b64decode(
+        firebase_service_account_b64
+    ).decode("utf-8")
+
     firebase_service_account_info = json.loads(
-        firebase_service_account
+        firebase_service_account_json
     )
 
     firebase_admin.initialize_app(
@@ -98,10 +104,7 @@ def verify_user(authorization: str | None):
             detail="Invalid authentication format."
         )
 
-    id_token = authorization.split(
-        " ",
-        1
-    )[1]
+    id_token = authorization.split(" ", 1)[1]
 
     if not id_token:
         raise HTTPException(
@@ -110,7 +113,6 @@ def verify_user(authorization: str | None):
         )
 
     try:
-
         decoded_token = auth.verify_id_token(
             id_token
         )
@@ -129,7 +131,6 @@ def verify_user(authorization: str | None):
         raise
 
     except Exception as error:
-
         print(
             "Firebase token verification error:",
             error
@@ -148,23 +149,18 @@ def verify_user(authorization: str | None):
 def generate_illustration(prompt):
 
     try:
-
         result = client.images.generate(
             model="gpt-image-2",
             prompt=prompt,
             size="1024x1024",
         )
 
-        if (
-            result.data
-            and result.data[0].b64_json
-        ):
+        if result.data and result.data[0].b64_json:
             return result.data[0].b64_json
 
         return None
 
     except Exception as error:
-
         print(
             "Image generation error:",
             error
@@ -193,18 +189,14 @@ def home():
 @app.post("/chat")
 def chat(
     data: dict,
-    authorization: str | None = Header(
-        default=None
-    )
+    authorization: str | None = Header(default=None)
 ):
 
     # --------------------------------------------------
     # Verify Firebase User
     # --------------------------------------------------
 
-    uid = verify_user(
-        authorization
-    )
+    uid = verify_user(authorization)
 
     print(
         f"Authenticated Firebase user: {uid}"
@@ -214,16 +206,11 @@ def chat(
     # Get Question
     # --------------------------------------------------
 
-    question = data.get(
-        "question",
-        ""
-    )
+    question = data.get("question", "")
 
     if not question.strip():
-
         return {
-            "answer":
-            "Please enter a question.",
+            "answer": "Please enter a question.",
             "illustration": None
         }
 
@@ -401,28 +388,28 @@ For Salesforce implementation questions:
 
 7. Mention the relevant:
 
-   - Object
-   - Field
-   - Flow
-   - Validation Rule
-   - Permission
-   - Profile
-   - Permission Set
-   - Sharing Rule
-   - Apex
-   - LWC
-   - SOQL
-   - CPQ
-   - Integration
-   - Automation
-   - Other relevant Salesforce feature
+- Object
+- Field
+- Flow
+- Validation Rule
+- Permission
+- Profile
+- Permission Set
+- Sharing Rule
+- Apex
+- LWC
+- SOQL
+- CPQ
+- Integration
+- Automation
+- Other relevant Salesforce feature
 
 8. Include code when required.
 
 9. Include testing scenarios and expected results.
 
 10. Include important notes, assumptions, limitations,
-    and org-specific differences.
+and org-specific differences.
 
 11. Prefer current Salesforce functionality.
 
@@ -473,7 +460,7 @@ For programming questions:
 - Mention the expected output when useful.
 - Handle debugging questions carefully.
 - If the user provides an error, explain the likely cause
-  and provide the corrected solution.
+and provide the corrected solution.
 - Match the programming language requested by the user.
 - Do not change programming languages unless useful or requested.
 
