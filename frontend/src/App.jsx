@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 
 import { auth, googleProvider } from "./firebase";
+import robotImage from "./assets/salesforce-ai-robot.png";
 
 const BACKEND_URL =
   "https://salesforce-ai-assistant-8gvo.onrender.com";
@@ -54,7 +55,6 @@ function App() {
           email.trim(),
           password
         );
-
         setMessage("Account created successfully.");
       } else {
         await signInWithEmailAndPassword(
@@ -62,33 +62,27 @@ function App() {
           email.trim(),
           password
         );
-
         setMessage("Signed in successfully.");
       }
     } catch (error) {
       console.error("Authentication error:", error);
 
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          setMessage("This email is already registered.");
-          break;
-
-        case "auth/invalid-email":
-          setMessage("Please enter a valid email address.");
-          break;
-
-        case "auth/weak-password":
-          setMessage("Password must be at least 6 characters.");
-          break;
-
-        case "auth/invalid-credential":
-        case "auth/wrong-password":
-        case "auth/user-not-found":
-          setMessage("Invalid email or password.");
-          break;
-
-        default:
-          setMessage(error.message || "Authentication failed.");
+      if (error.code === "auth/email-already-in-use") {
+        setMessage("This email is already registered.");
+      } else if (error.code === "auth/invalid-email") {
+        setMessage("Please enter a valid email address.");
+      } else if (error.code === "auth/weak-password") {
+        setMessage("Password must be at least 6 characters.");
+      } else if (
+        error.code === "auth/invalid-credential" ||
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/user-not-found"
+      ) {
+        setMessage("Invalid email or password.");
+      } else {
+        setMessage(
+          error.message || "Authentication failed."
+        );
       }
     } finally {
       setAuthLoading(false);
@@ -131,14 +125,10 @@ function App() {
       );
     } catch (error) {
       console.error("Password reset error:", error);
-
-      if (error.code === "auth/user-not-found") {
-        setMessage("No account was found with this email.");
-      } else {
-        setMessage(
-          error.message || "Unable to send reset email."
-        );
-      }
+      setMessage(
+        error.message ||
+          "Unable to send password reset email."
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -147,7 +137,6 @@ function App() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-
       setQuestion("");
       setAnswer("");
       setIllustration(null);
@@ -250,21 +239,25 @@ function App() {
     "What is LWC?",
   ];
 
+  /*
+   * LOGIN / CREATE ACCOUNT SCREEN
+   */
   if (!user) {
     return (
-      <div style={styles.page}>
-        <div style={styles.authCard}>
+      <div style={styles.loginPage}>
+        <div style={styles.loginCard}>
+
           <img
-            src="/assets/salesforce-ai-robot-B7rriz3-.png"
+            src={robotImage}
             alt="Salesforce AI Assistant"
-            style={styles.robotSmall}
+            style={styles.loginRobot}
           />
 
-          <h1 style={styles.title}>
+          <h1 style={styles.loginTitle}>
             Salesforce AI Assistant
           </h1>
 
-          <p style={styles.subtitle}>
+          <p style={styles.loginSubtitle}>
             Ask anything in any language.
           </p>
 
@@ -305,22 +298,22 @@ function App() {
           <form onSubmit={handleEmailAuth}>
             <input
               type="email"
-              placeholder="Email address"
               value={email}
               onChange={(event) =>
                 setEmail(event.target.value)
               }
+              placeholder="Email address"
               style={styles.input}
               autoComplete="email"
             />
 
             <input
               type="password"
-              placeholder="Password"
               value={password}
               onChange={(event) =>
                 setPassword(event.target.value)
               }
+              placeholder="Password"
               style={styles.input}
               autoComplete={
                 mode === "signup"
@@ -332,7 +325,7 @@ function App() {
             <button
               type="submit"
               disabled={authLoading}
-              style={styles.primaryButton}
+              style={styles.continueButton}
             >
               {authLoading
                 ? "Please wait..."
@@ -346,14 +339,18 @@ function App() {
             <button
               type="button"
               onClick={handleForgotPassword}
-              style={styles.linkButton}
+              style={styles.forgotButton}
             >
               Forgot password?
             </button>
           )}
 
-          <div style={styles.divider}>
-            <span>OR</span>
+          <div style={styles.orContainer}>
+            <div style={styles.line} />
+            <span style={styles.orText}>
+              OR
+            </span>
+            <div style={styles.line} />
           </div>
 
           <button
@@ -362,10 +359,13 @@ function App() {
             disabled={authLoading}
             style={styles.googleButton}
           >
-            <span style={styles.googleIcon}>
+            <span style={styles.googleG}>
               G
             </span>
-            Continue with Google
+
+            <span>
+              Continue with Google
+            </span>
           </button>
 
           {message && (
@@ -376,11 +376,11 @@ function App() {
 
           <p style={styles.terms}>
             By continuing, you agree to our{" "}
-            <a href="#" style={styles.termsLink}>
+            <a href="#" style={styles.link}>
               Terms
             </a>{" "}
             and{" "}
-            <a href="#" style={styles.termsLink}>
+            <a href="#" style={styles.link}>
               Privacy Policy
             </a>
             .
@@ -390,12 +390,16 @@ function App() {
     );
   }
 
+  /*
+   * MAIN AI ASSISTANT SCREEN
+   */
   return (
-    <div style={styles.appPage}>
+    <div style={styles.app}>
+
       <header style={styles.header}>
-        <div style={styles.brand}>
+        <div style={styles.headerLeft}>
           <img
-            src="/assets/salesforce-ai-robot-B7rriz3-.png"
+            src={robotImage}
             alt="AI Assistant"
             style={styles.headerRobot}
           />
@@ -411,15 +415,15 @@ function App() {
           </div>
         </div>
 
-        <div style={styles.userArea}>
-          <span style={styles.userEmail}>
+        <div style={styles.headerRight}>
+          <span style={styles.email}>
             {user.email}
           </span>
 
           <button
             type="button"
             onClick={handleSignOut}
-            style={styles.signOutButton}
+            style={styles.signOut}
           >
             Sign Out
           </button>
@@ -427,25 +431,27 @@ function App() {
       </header>
 
       <main style={styles.main}>
+
         <section style={styles.hero}>
           <img
-            src="/assets/salesforce-ai-robot-B7rriz3-.png"
+            src={robotImage}
             alt="Salesforce AI Assistant"
-            style={styles.robotMain}
+            style={styles.mainRobot}
           />
 
           <h2 style={styles.heroTitle}>
             How can I help you today?
           </h2>
 
-          <p style={styles.heroText}>
-            Ask Salesforce questions about Admin,
+          <p style={styles.heroDescription}>
+            Ask questions about Salesforce Admin,
             Development, Testing, Apex, LWC, CPQ,
             Sales Cloud, Service Cloud and more.
           </p>
         </section>
 
-        <section style={styles.chatCard}>
+        <section style={styles.questionCard}>
+
           <textarea
             value={question}
             onChange={(event) =>
@@ -453,12 +459,12 @@ function App() {
             }
             onKeyDown={handleKeyDown}
             placeholder="Ask your Salesforce question..."
-            style={styles.textarea}
             rows={5}
+            style={styles.textarea}
           />
 
-          <div style={styles.actionRow}>
-            <span style={styles.enterHint}>
+          <div style={styles.questionFooter}>
+            <span style={styles.hint}>
               Press Enter to ask
             </span>
 
@@ -474,24 +480,24 @@ function App() {
         </section>
 
         <section style={styles.quickSection}>
-          <h3 style={styles.sectionTitle}>
+          <h3 style={styles.quickTitle}>
             Quick Questions
           </h3>
 
           <div style={styles.quickGrid}>
             {quickQuestions.map(
-              (quickQuestion) => (
+              (item) => (
                 <button
-                  key={quickQuestion}
+                  key={item}
                   type="button"
                   onClick={() => {
-                    setQuestion(quickQuestion);
+                    setQuestion(item);
                     setAnswer("");
                     setIllustration(null);
                   }}
                   style={styles.quickButton}
                 >
-                  {quickQuestion}
+                  {item}
                 </button>
               )
             )}
@@ -501,7 +507,7 @@ function App() {
         {loading && (
           <section style={styles.answerCard}>
             <div style={styles.loading}>
-              <div style={styles.spinner}></div>
+              <div style={styles.spinner} />
               <span>
                 Salesforce AI is thinking...
               </span>
@@ -511,11 +517,12 @@ function App() {
 
         {!loading && answer && (
           <section style={styles.answerCard}>
+
             <h3 style={styles.answerTitle}>
               AI Response
             </h3>
 
-            <div style={styles.answerText}>
+            <div style={styles.answer}>
               {answer}
             </div>
 
@@ -531,45 +538,46 @@ function App() {
       </main>
 
       <footer style={styles.footer}>
-        <p>
+        <div>
           Salesforce AI Assistant
-        </p>
-        <p>
-          AI-powered Salesforce learning
-          assistant
-        </p>
+        </div>
+
+        <div>
+          AI-powered Salesforce learning assistant
+        </div>
       </footer>
     </div>
   );
 }
 
 const styles = {
-  page: {
+  loginPage: {
     minHeight: "100vh",
+    width: "100%",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background:
-      "linear-gradient(135deg, #f5f8ff, #eef3ff)",
-    padding: "20px",
+    padding: "24px",
     boxSizing: "border-box",
+    background:
+      "linear-gradient(135deg, #f4f8ff 0%, #eef4ff 100%)",
     fontFamily:
       "Inter, Arial, sans-serif",
   },
 
-  authCard: {
+  loginCard: {
     width: "100%",
-    maxWidth: "430px",
+    maxWidth: "420px",
     background: "#ffffff",
     borderRadius: "20px",
-    padding: "32px",
+    padding: "30px",
     boxSizing: "border-box",
-    boxShadow:
-      "0 15px 45px rgba(0, 0, 0, 0.10)",
     textAlign: "center",
+    boxShadow:
+      "0 12px 40px rgba(0,0,0,0.10)",
   },
 
-  robotSmall: {
+  loginRobot: {
     width: "120px",
     height: "120px",
     objectFit: "contain",
@@ -577,159 +585,180 @@ const styles = {
     margin: "0 auto 12px",
   },
 
-  title: {
+  loginTitle: {
     margin: "0",
-    fontSize: "28px",
+    fontSize: "26px",
+    lineHeight: "1.25",
     fontWeight: "700",
     color: "#172033",
   },
 
-  subtitle: {
-    margin: "8px 0 24px",
+  loginSubtitle: {
+    margin: "8px 0 22px",
     color: "#667085",
-    fontSize: "15px",
+    fontSize: "14px",
   },
 
   tabs: {
     display: "flex",
-    gap: "8px",
-    marginBottom: "20px",
+    width: "100%",
+    gap: "5px",
+    padding: "4px",
+    marginBottom: "18px",
     background: "#f2f4f7",
     borderRadius: "10px",
-    padding: "4px",
+    boxSizing: "border-box",
   },
 
   tab: {
     flex: 1,
     border: "none",
-    background: "transparent",
-    padding: "11px 8px",
     borderRadius: "8px",
+    padding: "11px 5px",
+    background: "transparent",
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: "600",
+    color: "#475467",
   },
 
   activeTab: {
     background: "#ffffff",
+    color: "#172033",
     boxShadow:
       "0 1px 5px rgba(0,0,0,0.10)",
   },
 
   input: {
     width: "100%",
-    padding: "13px 14px",
-    marginBottom: "12px",
+    height: "46px",
     border: "1px solid #d0d5dd",
     borderRadius: "9px",
+    padding: "0 13px",
+    marginBottom: "12px",
     boxSizing: "border-box",
-    fontSize: "15px",
+    fontSize: "14px",
     outline: "none",
   },
 
-  primaryButton: {
+  continueButton: {
     width: "100%",
+    height: "46px",
     border: "none",
     borderRadius: "9px",
-    padding: "13px",
     background: "#0176d3",
     color: "#ffffff",
-    fontSize: "15px",
+    fontSize: "14px",
     fontWeight: "600",
     cursor: "pointer",
   },
 
-  linkButton: {
-    marginTop: "15px",
+  forgotButton: {
     border: "none",
     background: "transparent",
     color: "#0176d3",
+    fontSize: "13px",
     cursor: "pointer",
-    fontSize: "14px",
+    marginTop: "13px",
   },
 
-  divider: {
+  orContainer: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    margin: "22px 0",
+    gap: "10px",
+    margin: "20px 0",
+  },
+
+  line: {
+    flex: 1,
+    height: "1px",
+    background: "#eaecf0",
+  },
+
+  orText: {
     color: "#98a2b3",
-    fontSize: "12px",
+    fontSize: "11px",
+    fontWeight: "600",
   },
 
   googleButton: {
     width: "100%",
-    padding: "12px",
-    borderRadius: "9px",
-    border: "1px solid #d0d5dd",
-    background: "#ffffff",
-    cursor: "pointer",
-    fontSize: "15px",
-    fontWeight: "600",
+    height: "46px",
     display: "flex",
-    alignItems: "center",
     justifyContent: "center",
-    gap: "10px",
+    alignItems: "center",
+    gap: "9px",
+    border: "1px solid #d0d5dd",
+    borderRadius: "9px",
+    background: "#ffffff",
+    color: "#344054",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
   },
 
-  googleIcon: {
-    fontWeight: "700",
+  googleG: {
     fontSize: "18px",
+    fontWeight: "700",
   },
 
   message: {
-    marginTop: "16px",
+    marginTop: "15px",
     padding: "10px",
     borderRadius: "8px",
     background: "#f2f4f7",
     color: "#344054",
-    fontSize: "13px",
+    fontSize: "12px",
+    lineHeight: "1.4",
   },
 
   terms: {
-    marginTop: "22px",
+    margin: "20px 0 0",
     color: "#98a2b3",
-    fontSize: "12px",
+    fontSize: "11px",
     lineHeight: "1.5",
   },
 
-  termsLink: {
+  link: {
     color: "#667085",
   },
 
-  appPage: {
+  app: {
     minHeight: "100vh",
     background: "#f7f9fc",
+    color: "#172033",
     fontFamily:
       "Inter, Arial, sans-serif",
-    color: "#172033",
   },
 
   header: {
+    width: "100%",
+    minHeight: "72px",
     background: "#ffffff",
     borderBottom: "1px solid #e4e7ec",
-    padding: "14px 24px",
+    padding: "10px 24px",
+    boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: "20px",
   },
 
-  brand: {
+  headerLeft: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
+    gap: "10px",
   },
 
   headerRobot: {
-    width: "55px",
-    height: "55px",
+    width: "48px",
+    height: "48px",
     objectFit: "contain",
   },
 
   headerTitle: {
     margin: 0,
-    fontSize: "20px",
+    fontSize: "19px",
     fontWeight: "700",
   },
 
@@ -739,151 +768,154 @@ const styles = {
     color: "#667085",
   },
 
-  userArea: {
+  headerRight: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
   },
 
-  userEmail: {
-    fontSize: "13px",
+  email: {
     color: "#667085",
+    fontSize: "12px",
   },
 
-  signOutButton: {
-    border: "1px solid #d0d5dd",
-    background: "#ffffff",
-    borderRadius: "8px",
+  signOut: {
     padding: "8px 13px",
+    border: "1px solid #d0d5dd",
+    borderRadius: "8px",
+    background: "#ffffff",
     cursor: "pointer",
-    fontSize: "13px",
+    fontSize: "12px",
   },
 
   main: {
     width: "100%",
     maxWidth: "900px",
     margin: "0 auto",
-    padding: "45px 20px",
+    padding: "40px 20px",
     boxSizing: "border-box",
   },
 
   hero: {
     textAlign: "center",
-    marginBottom: "30px",
+    marginBottom: "28px",
   },
 
-  robotMain: {
+  mainRobot: {
     width: "120px",
     height: "120px",
     objectFit: "contain",
-    margin: "0 auto 12px",
     display: "block",
+    margin: "0 auto 10px",
   },
 
   heroTitle: {
-    fontSize: "30px",
-    margin: "0 0 8px",
+    margin: "0",
+    fontSize: "28px",
+    fontWeight: "700",
   },
 
-  heroText: {
+  heroDescription: {
     maxWidth: "650px",
-    margin: "0 auto",
+    margin: "9px auto 0",
     color: "#667085",
+    fontSize: "14px",
     lineHeight: "1.6",
-    fontSize: "15px",
   },
 
-  chatCard: {
+  questionCard: {
     background: "#ffffff",
-    borderRadius: "16px",
-    padding: "18px",
-    boxShadow:
-      "0 5px 20px rgba(0, 0, 0, 0.06)",
     border: "1px solid #eaecf0",
+    borderRadius: "15px",
+    padding: "16px",
+    boxShadow:
+      "0 4px 18px rgba(0,0,0,0.05)",
   },
 
   textarea: {
     width: "100%",
-    resize: "vertical",
     minHeight: "130px",
+    resize: "vertical",
     border: "1px solid #d0d5dd",
-    borderRadius: "10px",
-    padding: "14px",
+    borderRadius: "9px",
+    padding: "13px",
     boxSizing: "border-box",
-    fontSize: "15px",
+    fontSize: "14px",
+    lineHeight: "1.5",
     fontFamily:
       "Inter, Arial, sans-serif",
     outline: "none",
   },
 
-  actionRow: {
+  questionFooter: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: "12px",
+    marginTop: "10px",
   },
 
-  enterHint: {
+  hint: {
     color: "#98a2b3",
-    fontSize: "12px",
+    fontSize: "11px",
   },
 
   askButton: {
     border: "none",
-    borderRadius: "9px",
-    padding: "11px 22px",
+    borderRadius: "8px",
+    padding: "10px 20px",
     background: "#0176d3",
     color: "#ffffff",
     cursor: "pointer",
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: "600",
   },
 
   quickSection: {
-    marginTop: "28px",
+    marginTop: "25px",
   },
 
-  sectionTitle: {
-    fontSize: "17px",
-    marginBottom: "12px",
+  quickTitle: {
+    margin: "0 0 11px",
+    fontSize: "16px",
   },
 
   quickGrid: {
     display: "grid",
     gridTemplateColumns:
       "repeat(auto-fit, minmax(190px, 1fr))",
-    gap: "10px",
+    gap: "9px",
   },
 
   quickButton: {
-    border: "1px solid #d0d5dd",
     background: "#ffffff",
-    borderRadius: "9px",
-    padding: "12px",
-    cursor: "pointer",
+    border: "1px solid #d0d5dd",
+    borderRadius: "8px",
+    padding: "11px",
     textAlign: "left",
-    fontSize: "13px",
+    cursor: "pointer",
+    fontSize: "12px",
+    color: "#344054",
   },
 
   answerCard: {
-    marginTop: "28px",
+    marginTop: "25px",
     background: "#ffffff",
-    borderRadius: "16px",
-    padding: "22px",
     border: "1px solid #eaecf0",
+    borderRadius: "15px",
+    padding: "20px",
     boxShadow:
-      "0 5px 20px rgba(0, 0, 0, 0.05)",
+      "0 4px 18px rgba(0,0,0,0.05)",
   },
 
   answerTitle: {
-    marginTop: 0,
-    fontSize: "18px",
+    margin: "0 0 12px",
+    fontSize: "17px",
   },
 
-  answerText: {
+  answer: {
     whiteSpace: "pre-wrap",
+    fontSize: "14px",
     lineHeight: "1.7",
-    fontSize: "15px",
     color: "#344054",
   },
 
@@ -899,26 +931,25 @@ const styles = {
   loading: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
+    gap: "10px",
     color: "#667085",
+    fontSize: "13px",
   },
 
   spinner: {
-    width: "20px",
-    height: "20px",
+    width: "18px",
+    height: "18px",
     border: "3px solid #e4e7ec",
-    borderTop:
-      "3px solid #0176d3",
+    borderTop: "3px solid #0176d3",
     borderRadius: "50%",
-    animation:
-      "spin 1s linear infinite",
   },
 
   footer: {
     textAlign: "center",
-    padding: "25px",
+    padding: "25px 20px",
     color: "#98a2b3",
-    fontSize: "12px",
+    fontSize: "11px",
+    lineHeight: "1.6",
   },
 };
 
