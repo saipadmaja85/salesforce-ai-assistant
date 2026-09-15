@@ -88,16 +88,22 @@ function App() {
         }
       );
 
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
       const data = await response.json();
 
       setAnswer(data.answer || "No answer received.");
       setIllustration(data.illustration || null);
     } catch (error) {
       console.error(error);
-      setAnswer("Unable to connect to the AI backend.");
+      setAnswer(
+        "Unable to connect to the AI backend. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -121,19 +127,19 @@ function App() {
         </button>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="main-container">
 
         <img
           src={aiRobot}
-          alt="Salesforce AI Assistant"
+          alt="AI Assistant"
           className="ai-robot"
         />
 
         <h2>How can I help you?</h2>
 
         <p className="subtitle">
-          Ask any Salesforce, ServiceNow, SAP, Python, Java, or other technology and business scenario question.
+          Ask any technology, business, or general question in any language.
         </p>
 
         {/* Quick Questions */}
@@ -182,6 +188,16 @@ function App() {
           <button
             onClick={() =>
               setQuestion(
+                "How can I create an automated test using Playwright?"
+              )
+            }
+          >
+            Playwright
+          </button>
+
+          <button
+            onClick={() =>
+              setQuestion(
                 "A business wants to automate its approval process. How should I implement it?"
               )
             }
@@ -195,7 +211,7 @@ function App() {
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask any technology or business question..."
+          placeholder="Ask anything in any language..."
         />
 
         {/* Ask AI */}
