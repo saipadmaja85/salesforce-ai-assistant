@@ -49,7 +49,7 @@ function App() {
     useState(null);
 
   const [showInstallButton, setShowInstallButton] =
-    useState(false);
+    useState(true);
 
   const [showPro, setShowPro] =
     useState(false);
