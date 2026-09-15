@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -9,43 +10,188 @@ import {
 } from "firebase/auth";
 
 import { auth, googleProvider } from "./firebase";
+
 import robotImage from "./assets/salesforce-ai-robot.png";
 
 const BACKEND_URL =
   "https://salesforce-ai-assistant-8gvo.onrender.com";
 
 function App() {
+  /* =========================
+     STATE
+  ========================= */
+
   const [user, setUser] = useState(null);
 
   const [mode, setMode] = useState("signin");
+
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
 
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [illustration, setIllustration] = useState(null);
 
-  const [loading, setLoading] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [answer, setAnswer] = useState("");
+
+  const [illustration, setIllustration] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [authLoading, setAuthLoading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [installPrompt, setInstallPrompt] =
+    useState(null);
+
+  const [showInstallButton, setShowInstallButton] =
+    useState(false);
+
+  const [showPro, setShowPro] =
+    useState(false);
+
+  /* =========================
+     FIREBASE AUTH STATE
+  ========================= */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        (currentUser) => {
+          setUser(currentUser);
+        }
+      );
 
     return () => unsubscribe();
   }, []);
 
-  const handleEmailAuth = async (event) => {
+  /* =========================
+     DARKER PLACEHOLDERS
+  ========================= */
+
+  useEffect(() => {
+    const style =
+      document.createElement("style");
+
+    style.innerHTML = `
+      input::placeholder,
+      textarea::placeholder {
+        color: #667085 !important;
+        opacity: 1 !important;
+      }
+
+      button:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+
+      @media (max-width: 700px) {
+        .desktop-only {
+          display: none !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  /* =========================
+     PWA INSTALL
+  ========================= */
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt =
+      (event) => {
+        event.preventDefault();
+
+        setInstallPrompt(event);
+
+        setShowInstallButton(true);
+      };
+
+    window.addEventListener(
+      "beforeinstallprompt",
+      handleBeforeInstallPrompt
+    );
+
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      );
+    };
+  }, []);
+
+  /* =========================
+     INSTALL APP
+  ========================= */
+
+  const installApp = async () => {
+    if (!installPrompt) {
+      setMessage(
+        "The Install App option is not available in this browser right now. Please use the browser menu and choose Install App or Add to Home Screen."
+      );
+
+      return;
+    }
+
+    try {
+      await installPrompt.prompt();
+
+      const result =
+        await installPrompt.userChoice;
+
+      if (
+        result &&
+        result.outcome === "accepted"
+      ) {
+        setMessage(
+          "Salesforce AI Assistant installed successfully."
+        );
+      }
+
+      setInstallPrompt(null);
+
+      setShowInstallButton(false);
+    } catch (error) {
+      console.error(
+        "PWA installation error:",
+        error
+      );
+    }
+  };
+
+  /* =========================
+     EMAIL SIGN IN / SIGN UP
+  ========================= */
+
+  const handleEmailAuth = async (
+    event
+  ) => {
     event.preventDefault();
 
-    if (!email.trim() || !password.trim()) {
-      setMessage("Please enter your email and password.");
+    if (
+      !email.trim() ||
+      !password.trim()
+    ) {
+      setMessage(
+        "Please enter your email and password."
+      );
+
       return;
     }
 
     setAuthLoading(true);
+
     setMessage("");
 
     try {
@@ -55,33 +201,63 @@ function App() {
           email.trim(),
           password
         );
-        setMessage("Account created successfully.");
+
+        setMessage(
+          "Account created successfully."
+        );
       } else {
         await signInWithEmailAndPassword(
           auth,
           email.trim(),
           password
         );
-        setMessage("Signed in successfully.");
+
+        setMessage(
+          "Signed in successfully."
+        );
       }
     } catch (error) {
-      console.error("Authentication error:", error);
+      console.error(
+        "Authentication error:",
+        error
+      );
 
-      if (error.code === "auth/email-already-in-use") {
-        setMessage("This email is already registered.");
-      } else if (error.code === "auth/invalid-email") {
-        setMessage("Please enter a valid email address.");
-      } else if (error.code === "auth/weak-password") {
-        setMessage("Password must be at least 6 characters.");
-      } else if (
-        error.code === "auth/invalid-credential" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/user-not-found"
+      if (
+        error.code ===
+        "auth/email-already-in-use"
       ) {
-        setMessage("Invalid email or password.");
+        setMessage(
+          "This email is already registered."
+        );
+      } else if (
+        error.code ===
+        "auth/invalid-email"
+      ) {
+        setMessage(
+          "Please enter a valid email address."
+        );
+      } else if (
+        error.code ===
+        "auth/weak-password"
+      ) {
+        setMessage(
+          "Password must be at least 6 characters."
+        );
+      } else if (
+        error.code ===
+          "auth/invalid-credential" ||
+        error.code ===
+          "auth/wrong-password" ||
+        error.code ===
+          "auth/user-not-found"
+      ) {
+        setMessage(
+          "Invalid email or password."
+        );
       } else {
         setMessage(
-          error.message || "Authentication failed."
+          error.message ||
+            "Authentication failed."
         );
       }
     } finally {
@@ -89,112 +265,211 @@ function App() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setAuthLoading(true);
-    setMessage("");
+  /* =========================
+     GOOGLE SIGN IN
+  ========================= */
 
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Google sign-in error:", error);
-      setMessage(
-        error.message || "Google sign-in failed."
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
+  const handleGoogleLogin =
+    async () => {
+      setAuthLoading(true);
 
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setMessage("Enter your email address first.");
-      return;
-    }
-
-    setAuthLoading(true);
-    setMessage("");
-
-    try {
-      await sendPasswordResetEmail(
-        auth,
-        email.trim()
-      );
-
-      setMessage(
-        "Password reset email sent. Please check your inbox."
-      );
-    } catch (error) {
-      console.error("Password reset error:", error);
-      setMessage(
-        error.message ||
-          "Unable to send password reset email."
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      setQuestion("");
-      setAnswer("");
-      setIllustration(null);
       setMessage("");
-    } catch (error) {
-      console.error("Sign out error:", error);
-    }
-  };
+
+      try {
+        await signInWithPopup(
+          auth,
+          googleProvider
+        );
+      } catch (error) {
+        console.error(
+          "Google sign-in error:",
+          error
+        );
+
+        setMessage(
+          error.message ||
+            "Google sign-in failed."
+        );
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+  /* =========================
+     FORGOT PASSWORD
+  ========================= */
+
+  const handleForgotPassword =
+    async () => {
+      if (!email.trim()) {
+        setMessage(
+          "Enter your email address first."
+        );
+
+        return;
+      }
+
+      setAuthLoading(true);
+
+      setMessage("");
+
+      try {
+        await sendPasswordResetEmail(
+          auth,
+          email.trim()
+        );
+
+        setMessage(
+          "Password reset email sent. Please check your inbox."
+        );
+      } catch (error) {
+        console.error(
+          "Password reset error:",
+          error
+        );
+
+        setMessage(
+          error.message ||
+            "Unable to send password reset email."
+        );
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+  /* =========================
+     SIGN OUT
+  ========================= */
+
+  const handleSignOut =
+    async () => {
+      try {
+        await signOut(auth);
+
+        setQuestion("");
+
+        setAnswer("");
+
+        setIllustration(null);
+
+        setMessage("");
+
+        setShowPro(false);
+      } catch (error) {
+        console.error(
+          "Sign out error:",
+          error
+        );
+      }
+    };
+
+  /* =========================
+     PRO UPGRADE
+  ========================= */
+
+  const handleUpgrade =
+    async () => {
+      /*
+       * Razorpay will be connected here.
+       *
+       * IMPORTANT:
+       * Razorpay secret credentials must
+       * stay on the Render backend.
+       */
+
+      setMessage(
+        "Pro payment is ready for Razorpay integration. The secure Razorpay subscription backend still needs to be connected."
+      );
+
+      setShowPro(true);
+    };
+
+  /* =========================
+     ASK AI
+  ========================= */
 
   const askQuestion = async () => {
     if (!question.trim()) {
-      setAnswer("Please enter a question.");
+      setAnswer(
+        "Please enter a question."
+      );
+
       return;
     }
 
     if (!user) {
-      setAnswer("Please sign in before asking a question.");
+      setAnswer(
+        "Please sign in before asking a question."
+      );
+
       return;
     }
 
     setLoading(true);
+
     setAnswer("");
+
     setIllustration(null);
 
     try {
-      const token = await user.getIdToken(true);
+      const token =
+        await user.getIdToken(true);
 
-      const response = await fetch(
-        `${BACKEND_URL}/chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            question: question.trim(),
-          }),
-        }
-      );
+      const response =
+        await fetch(
+          `${BACKEND_URL}/chat`,
+          {
+            method: "POST",
 
-      const data = await response.json().catch(() => null);
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: JSON.stringify({
+              question:
+                question.trim(),
+            }),
+          }
+        );
+
+      const data =
+        await response
+          .json()
+          .catch(() => null);
 
       if (!response.ok) {
+        /*
+         * FREE LIMIT REACHED
+         */
+
         if (
           response.status === 403 &&
           data?.upgrade_required
         ) {
           setAnswer(
-            "🔒 You've used your 10 free questions for this month. Upgrade to Pro for ₹100/month to continue."
+            "🔒 You've used your 10 free questions for this month."
           );
+
+          setShowPro(true);
+
           return;
         }
 
-        if (response.status === 401) {
+        /*
+         * AUTH ERROR
+         */
+
+        if (
+          response.status === 401
+        ) {
           setAnswer(
             "Your login session has expired. Please sign out and sign in again."
           );
+
           return;
         }
 
@@ -205,14 +480,19 @@ function App() {
       }
 
       setAnswer(
-        data?.answer || "No answer received."
+        data?.answer ||
+          "No answer received."
       );
 
       setIllustration(
-        data?.illustration || null
+        data?.illustration ||
+          null
       );
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error(
+        "Chat error:",
+        error
+      );
 
       setAnswer(
         "Unable to connect to the AI backend. Please try again."
@@ -222,30 +502,49 @@ function App() {
     }
   };
 
-  const handleKeyDown = (event) => {
+  /* =========================
+     ENTER KEY
+  ========================= */
+
+  const handleKeyDown = (
+    event
+  ) => {
     if (
       event.key === "Enter" &&
       !event.shiftKey
     ) {
       event.preventDefault();
+
       askQuestion();
     }
   };
+
+  /* =========================
+     QUICK QUESTIONS
+  ========================= */
 
   const quickQuestions = [
     "What is Salesforce Flow?",
     "Explain Salesforce OWD",
     "What is an Apex trigger?",
     "What is LWC?",
+    "What is Salesforce CPQ?",
+    "What is a Permission Set?",
   ];
 
-  /*
-   * LOGIN / CREATE ACCOUNT SCREEN
-   */
+  /* =========================
+     LOGIN SCREEN
+  ========================= */
+
   if (!user) {
     return (
-      <div style={styles.loginPage}>
-        <div style={styles.loginCard}>
+      <div
+        style={styles.loginPage}
+      >
+        <div
+          style={styles.loginCard}
+        >
+          {/* ROBOT */}
 
           <img
             src={robotImage}
@@ -253,24 +552,49 @@ function App() {
             style={styles.loginRobot}
           />
 
-          <h1 style={styles.loginTitle}>
+          <h1
+            style={styles.loginTitle}
+          >
             Salesforce AI Assistant
           </h1>
 
-          <p style={styles.loginSubtitle}>
+          <p
+            style={styles.loginSubtitle}
+          >
             Ask anything in any language.
           </p>
 
-          <div style={styles.tabs}>
+          {/* INSTALL */}
+
+          {showInstallButton && (
+            <button
+              type="button"
+              onClick={installApp}
+              style={
+                styles.installButton
+              }
+            >
+              📲 Install App
+            </button>
+          )}
+
+          {/* TABS */}
+
+          <div
+            style={styles.tabs}
+          >
             <button
               type="button"
               onClick={() => {
                 setMode("signin");
+
                 setMessage("");
               }}
               style={{
                 ...styles.tab,
-                ...(mode === "signin"
+
+                ...(mode ===
+                "signin"
                   ? styles.activeTab
                   : {}),
               }}
@@ -282,11 +606,14 @@ function App() {
               type="button"
               onClick={() => {
                 setMode("signup");
+
                 setMessage("");
               }}
               style={{
                 ...styles.tab,
-                ...(mode === "signup"
+
+                ...(mode ===
+                "signup"
                   ? styles.activeTab
                   : {}),
               }}
@@ -295,12 +622,20 @@ function App() {
             </button>
           </div>
 
-          <form onSubmit={handleEmailAuth}>
+          {/* FORM */}
+
+          <form
+            onSubmit={
+              handleEmailAuth
+            }
+          >
             <input
               type="email"
               value={email}
               onChange={(event) =>
-                setEmail(event.target.value)
+                setEmail(
+                  event.target.value
+                )
               }
               placeholder="Email address"
               style={styles.input}
@@ -311,7 +646,9 @@ function App() {
               type="password"
               value={password}
               onChange={(event) =>
-                setPassword(event.target.value)
+                setPassword(
+                  event.target.value
+                )
               }
               placeholder="Password"
               style={styles.input}
@@ -325,7 +662,9 @@ function App() {
             <button
               type="submit"
               disabled={authLoading}
-              style={styles.continueButton}
+              style={
+                styles.continueButton
+              }
             >
               {authLoading
                 ? "Please wait..."
@@ -335,31 +674,59 @@ function App() {
             </button>
           </form>
 
+          {/* FORGOT PASSWORD */}
+
           {mode === "signin" && (
             <button
               type="button"
-              onClick={handleForgotPassword}
-              style={styles.forgotButton}
+              onClick={
+                handleForgotPassword
+              }
+              style={
+                styles.forgotButton
+              }
             >
               Forgot password?
             </button>
           )}
 
-          <div style={styles.orContainer}>
-            <div style={styles.line} />
-            <span style={styles.orText}>
+          {/* OR */}
+
+          <div
+            style={
+              styles.orContainer
+            }
+          >
+            <div
+              style={styles.line}
+            />
+
+            <span
+              style={styles.orText}
+            >
               OR
             </span>
-            <div style={styles.line} />
+
+            <div
+              style={styles.line}
+            />
           </div>
+
+          {/* GOOGLE */}
 
           <button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={
+              handleGoogleLogin
+            }
             disabled={authLoading}
-            style={styles.googleButton}
+            style={
+              styles.googleButton
+            }
           >
-            <span style={styles.googleG}>
+            <span
+              style={styles.googleG}
+            >
               G
             </span>
 
@@ -368,19 +735,34 @@ function App() {
             </span>
           </button>
 
+          {/* MESSAGE */}
+
           {message && (
-            <div style={styles.message}>
+            <div
+              style={styles.message}
+            >
               {message}
             </div>
           )}
 
-          <p style={styles.terms}>
-            By continuing, you agree to our{" "}
-            <a href="#" style={styles.link}>
+          {/* TERMS */}
+
+          <p
+            style={styles.terms}
+          >
+            By continuing, you agree
+            to our{" "}
+            <a
+              href="#"
+              style={styles.link}
+            >
               Terms
             </a>{" "}
             and{" "}
-            <a href="#" style={styles.link}>
+            <a
+              href="#"
+              style={styles.link}
+            >
               Privacy Policy
             </a>
             .
@@ -390,39 +772,101 @@ function App() {
     );
   }
 
-  /*
-   * MAIN AI ASSISTANT SCREEN
-   */
+  /* =========================
+     MAIN APP
+  ========================= */
+
   return (
     <div style={styles.app}>
 
-      <header style={styles.header}>
-        <div style={styles.headerLeft}>
+      {/* HEADER */}
+
+      <header
+        style={styles.header}
+      >
+        <div
+          style={styles.headerLeft}
+        >
           <img
             src={robotImage}
             alt="AI Assistant"
-            style={styles.headerRobot}
+            style={
+              styles.headerRobot
+            }
           />
 
           <div>
-            <h1 style={styles.headerTitle}>
+            <h1
+              style={
+                styles.headerTitle
+              }
+            >
               Salesforce AI Assistant
             </h1>
 
-            <p style={styles.headerSubtitle}>
-              Ask anything in any language.
+            <p
+              style={
+                styles.headerSubtitle
+              }
+            >
+              Ask anything in any
+              language.
             </p>
           </div>
         </div>
 
-        <div style={styles.headerRight}>
-          <span style={styles.email}>
-            {user.email}
-          </span>
+        <div
+          style={
+            styles.headerRight
+          }
+        >
+          {/* INSTALL */}
+
+          {showInstallButton && (
+            <button
+              type="button"
+              onClick={
+                installApp
+              }
+              style={
+                styles.installHeaderButton
+              }
+            >
+              📲 Install App
+            </button>
+          )}
+
+          {/* PRO */}
 
           <button
             type="button"
-            onClick={handleSignOut}
+            onClick={() =>
+              setShowPro(
+                !showPro
+              )
+            }
+            style={
+              styles.proHeaderButton
+            }
+          >
+            ⭐ Pro ₹100/month
+          </button>
+
+          {/* EMAIL */}
+
+          <span
+            style={styles.email}
+          >
+            {user.email}
+          </span>
+
+          {/* SIGN OUT */}
+
+          <button
+            type="button"
+            onClick={
+              handleSignOut
+            }
             style={styles.signOut}
           >
             Sign Out
@@ -430,72 +874,211 @@ function App() {
         </div>
       </header>
 
-      <main style={styles.main}>
+      {/* PRO PANEL */}
 
-        <section style={styles.hero}>
+      {showPro && (
+        <section
+          style={
+            styles.proSection
+          }
+        >
+          <div
+            style={styles.proCard}
+          >
+            <div
+              style={styles.proIcon}
+            >
+              ⭐
+            </div>
+
+            <div
+              style={styles.proContent}
+            >
+              <h2
+                style={styles.proTitle}
+              >
+                Upgrade to Pro
+              </h2>
+
+              <p
+                style={styles.proPrice}
+              >
+                ₹100 / month
+              </p>
+
+              <ul
+                style={styles.proList}
+              >
+                <li>
+                  More AI questions
+                </li>
+
+                <li>
+                  Advanced Salesforce
+                  assistance
+                </li>
+
+                <li>
+                  Priority features
+                </li>
+
+                <li>
+                  Monthly subscription
+                </li>
+              </ul>
+
+              <button
+                type="button"
+                onClick={
+                  handleUpgrade
+                }
+                style={
+                  styles.upgradeButton
+                }
+              >
+                💳 Upgrade to Pro
+              </button>
+
+              <p
+                style={
+                  styles.paymentNote
+                }
+              >
+                Secure payment through
+                Razorpay.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* MAIN */}
+
+      <main
+        style={styles.main}
+      >
+        {/* HERO */}
+
+        <section
+          style={styles.hero}
+        >
           <img
             src={robotImage}
             alt="Salesforce AI Assistant"
-            style={styles.mainRobot}
+            style={
+              styles.mainRobot
+            }
           />
 
-          <h2 style={styles.heroTitle}>
+          <h2
+            style={styles.heroTitle}
+          >
             How can I help you today?
           </h2>
 
-          <p style={styles.heroDescription}>
-            Ask questions about Salesforce Admin,
-            Development, Testing, Apex, LWC, CPQ,
-            Sales Cloud, Service Cloud and more.
+          <p
+            style={
+              styles.heroDescription
+            }
+          >
+            Ask questions about
+            Salesforce Admin,
+            Development, Testing,
+            Apex, LWC, CPQ, Sales
+            Cloud, Service Cloud
+            and more.
           </p>
         </section>
 
-        <section style={styles.questionCard}>
+        {/* QUESTION BOX */}
 
+        <section
+          style={
+            styles.questionCard
+          }
+        >
           <textarea
             value={question}
             onChange={(event) =>
-              setQuestion(event.target.value)
+              setQuestion(
+                event.target.value
+              )
             }
-            onKeyDown={handleKeyDown}
+            onKeyDown={
+              handleKeyDown
+            }
             placeholder="Ask your Salesforce question..."
             rows={5}
             style={styles.textarea}
           />
 
-          <div style={styles.questionFooter}>
-            <span style={styles.hint}>
+          <div
+            style={
+              styles.questionFooter
+            }
+          >
+            <span
+              style={styles.hint}
+            >
               Press Enter to ask
             </span>
 
             <button
               type="button"
-              onClick={askQuestion}
+              onClick={
+                askQuestion
+              }
               disabled={loading}
-              style={styles.askButton}
+              style={
+                styles.askButton
+              }
             >
-              {loading ? "Thinking..." : "Ask AI"}
+              {loading
+                ? "Thinking..."
+                : "Ask AI"}
             </button>
           </div>
         </section>
 
-        <section style={styles.quickSection}>
-          <h3 style={styles.quickTitle}>
+        {/* QUICK QUESTIONS */}
+
+        <section
+          style={
+            styles.quickSection
+          }
+        >
+          <h3
+            style={
+              styles.quickTitle
+            }
+          >
             Quick Questions
           </h3>
 
-          <div style={styles.quickGrid}>
+          <div
+            style={
+              styles.quickGrid
+            }
+          >
             {quickQuestions.map(
               (item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => {
-                    setQuestion(item);
+                    setQuestion(
+                      item
+                    );
+
                     setAnswer("");
-                    setIllustration(null);
+
+                    setIllustration(
+                      null
+                    );
                   }}
-                  style={styles.quickButton}
+                  style={
+                    styles.quickButton
+                  }
                 >
                   {item}
                 </button>
@@ -504,25 +1087,50 @@ function App() {
           </div>
         </section>
 
+        {/* LOADING */}
+
         {loading && (
-          <section style={styles.answerCard}>
-            <div style={styles.loading}>
-              <div style={styles.spinner} />
+          <section
+            style={
+              styles.answerCard
+            }
+          >
+            <div
+              style={styles.loading}
+            >
+              <div
+                style={
+                  styles.spinner
+                }
+              />
+
               <span>
-                Salesforce AI is thinking...
+                Salesforce AI is
+                thinking...
               </span>
             </div>
           </section>
         )}
 
-        {!loading && answer && (
-          <section style={styles.answerCard}>
+        {/* ANSWER */}
 
-            <h3 style={styles.answerTitle}>
+        {!loading && answer && (
+          <section
+            style={
+              styles.answerCard
+            }
+          >
+            <h3
+              style={
+                styles.answerTitle
+              }
+            >
               AI Response
             </h3>
 
-            <div style={styles.answer}>
+            <div
+              style={styles.answer}
+            >
               {answer}
             </div>
 
@@ -530,27 +1138,40 @@ function App() {
               <img
                 src={illustration}
                 alt="AI illustration"
-                style={styles.illustration}
+                style={
+                  styles.illustration
+                }
               />
             )}
           </section>
         )}
       </main>
 
-      <footer style={styles.footer}>
-        <div>
+      {/* FOOTER */}
+
+      <footer
+        style={styles.footer}
+      >
+        <strong>
           Salesforce AI Assistant
-        </div>
+        </strong>
 
         <div>
-          AI-powered Salesforce learning assistant
+          AI-powered Salesforce
+          learning assistant
         </div>
       </footer>
     </div>
   );
 }
 
+/* =========================
+   STYLES
+========================= */
+
 const styles = {
+  /* LOGIN */
+
   loginPage: {
     minHeight: "100vh",
     width: "100%",
@@ -560,21 +1181,22 @@ const styles = {
     padding: "24px",
     boxSizing: "border-box",
     background:
-      "linear-gradient(135deg, #f4f8ff 0%, #eef4ff 100%)",
+      "linear-gradient(135deg, #eef5ff, #f8fbff)",
     fontFamily:
       "Inter, Arial, sans-serif",
   },
 
   loginCard: {
     width: "100%",
-    maxWidth: "420px",
+    maxWidth: "430px",
     background: "#ffffff",
+    border: "1px solid #d0d5dd",
     borderRadius: "20px",
     padding: "30px",
     boxSizing: "border-box",
     textAlign: "center",
     boxShadow:
-      "0 12px 40px rgba(0,0,0,0.10)",
+      "0 12px 35px rgba(0,0,0,0.12)",
   },
 
   loginRobot: {
@@ -587,27 +1209,39 @@ const styles = {
 
   loginTitle: {
     margin: "0",
-    fontSize: "26px",
+    color: "#101828",
+    fontSize: "27px",
     lineHeight: "1.25",
-    fontWeight: "700",
-    color: "#172033",
+    fontWeight: "800",
   },
 
   loginSubtitle: {
-    margin: "8px 0 22px",
-    color: "#667085",
+    margin: "8px 0 20px",
+    color: "#344054",
     fontSize: "14px",
+    fontWeight: "500",
+  },
+
+  installButton: {
+    width: "100%",
+    height: "44px",
+    marginBottom: "16px",
+    border: "none",
+    borderRadius: "9px",
+    background: "#172033",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
   },
 
   tabs: {
     display: "flex",
-    width: "100%",
     gap: "5px",
     padding: "4px",
     marginBottom: "18px",
-    background: "#f2f4f7",
+    background: "#eaecf0",
     borderRadius: "10px",
-    boxSizing: "border-box",
   },
 
   tab: {
@@ -616,28 +1250,30 @@ const styles = {
     borderRadius: "8px",
     padding: "11px 5px",
     background: "transparent",
+    color: "#344054",
     cursor: "pointer",
     fontSize: "14px",
-    fontWeight: "600",
-    color: "#475467",
+    fontWeight: "700",
   },
 
   activeTab: {
     background: "#ffffff",
-    color: "#172033",
+    color: "#101828",
     boxShadow:
-      "0 1px 5px rgba(0,0,0,0.10)",
+      "0 1px 5px rgba(0,0,0,0.12)",
   },
 
   input: {
     width: "100%",
     height: "46px",
-    border: "1px solid #d0d5dd",
+    border: "2px solid #98a2b3",
     borderRadius: "9px",
     padding: "0 13px",
     marginBottom: "12px",
     boxSizing: "border-box",
     fontSize: "14px",
+    color: "#101828",
+    background: "#ffffff",
     outline: "none",
   },
 
@@ -649,17 +1285,18 @@ const styles = {
     background: "#0176d3",
     color: "#ffffff",
     fontSize: "14px",
-    fontWeight: "600",
+    fontWeight: "700",
     cursor: "pointer",
   },
 
   forgotButton: {
+    marginTop: "13px",
     border: "none",
     background: "transparent",
-    color: "#0176d3",
-    fontSize: "13px",
+    color: "#005fb2",
     cursor: "pointer",
-    marginTop: "13px",
+    fontSize: "13px",
+    fontWeight: "600",
   },
 
   orContainer: {
@@ -672,13 +1309,13 @@ const styles = {
   line: {
     flex: 1,
     height: "1px",
-    background: "#eaecf0",
+    background: "#98a2b3",
   },
 
   orText: {
-    color: "#98a2b3",
+    color: "#475467",
     fontSize: "11px",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   googleButton: {
@@ -688,111 +1325,218 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     gap: "9px",
-    border: "1px solid #d0d5dd",
+    border: "2px solid #98a2b3",
     borderRadius: "9px",
     background: "#ffffff",
-    color: "#344054",
+    color: "#172033",
     fontSize: "14px",
-    fontWeight: "600",
+    fontWeight: "700",
     cursor: "pointer",
   },
 
   googleG: {
     fontSize: "18px",
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
   message: {
     marginTop: "15px",
-    padding: "10px",
+    padding: "11px",
     borderRadius: "8px",
     background: "#f2f4f7",
-    color: "#344054",
+    border: "1px solid #98a2b3",
+    color: "#172033",
     fontSize: "12px",
-    lineHeight: "1.4",
+    lineHeight: "1.5",
   },
 
   terms: {
     margin: "20px 0 0",
-    color: "#98a2b3",
+    color: "#475467",
     fontSize: "11px",
-    lineHeight: "1.5",
+    lineHeight: "1.6",
   },
 
   link: {
-    color: "#667085",
+    color: "#005fb2",
+    fontWeight: "600",
   },
+
+  /* APP */
 
   app: {
     minHeight: "100vh",
     background: "#f7f9fc",
-    color: "#172033",
+    color: "#101828",
     fontFamily:
       "Inter, Arial, sans-serif",
   },
 
   header: {
-    width: "100%",
-    minHeight: "72px",
+    minHeight: "74px",
     background: "#ffffff",
-    borderBottom: "1px solid #e4e7ec",
-    padding: "10px 24px",
+    borderBottom:
+      "2px solid #d0d5dd",
+    padding: "10px 20px",
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "20px",
+    gap: "15px",
   },
 
   headerLeft: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
+    minWidth: 0,
   },
 
   headerRobot: {
     width: "48px",
     height: "48px",
     objectFit: "contain",
+    flexShrink: 0,
   },
 
   headerTitle: {
     margin: 0,
+    color: "#101828",
     fontSize: "19px",
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
   headerSubtitle: {
     margin: "3px 0 0",
+    color: "#475467",
     fontSize: "12px",
-    color: "#667085",
   },
 
   headerRight: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
+    justifyContent: "flex-end",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  installHeaderButton: {
+    border: "none",
+    borderRadius: "8px",
+    padding: "9px 12px",
+    background: "#172033",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+
+  proHeaderButton: {
+    border: "none",
+    borderRadius: "8px",
+    padding: "9px 12px",
+    background: "#f5b700",
+    color: "#172033",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "800",
   },
 
   email: {
-    color: "#667085",
+    color: "#172033",
     fontSize: "12px",
+    fontWeight: "700",
   },
 
   signOut: {
-    padding: "8px 13px",
-    border: "1px solid #d0d5dd",
+    padding: "9px 13px",
+    border: "2px solid #667085",
     borderRadius: "8px",
     background: "#ffffff",
+    color: "#172033",
     cursor: "pointer",
     fontSize: "12px",
+    fontWeight: "700",
   },
+
+  /* PRO */
+
+  proSection: {
+    width: "100%",
+    padding: "18px 20px 0",
+    boxSizing: "border-box",
+  },
+
+  proCard: {
+    width: "100%",
+    maxWidth: "850px",
+    margin: "0 auto",
+    background: "#ffffff",
+    border: "2px solid #f5b700",
+    borderRadius: "15px",
+    padding: "20px",
+    display: "flex",
+    gap: "18px",
+    boxSizing: "border-box",
+    boxShadow:
+      "0 5px 20px rgba(0,0,0,0.07)",
+  },
+
+  proIcon: {
+    fontSize: "34px",
+    flexShrink: 0,
+  },
+
+  proContent: {
+    flex: 1,
+  },
+
+  proTitle: {
+    margin: 0,
+    color: "#101828",
+    fontSize: "21px",
+    fontWeight: "800",
+  },
+
+  proPrice: {
+    margin: "5px 0 10px",
+    color: "#101828",
+    fontSize: "19px",
+    fontWeight: "800",
+  },
+
+  proList: {
+    margin: "8px 0 16px",
+    paddingLeft: "20px",
+    color: "#344054",
+    fontSize: "13px",
+    lineHeight: "1.9",
+  },
+
+  upgradeButton: {
+    border: "none",
+    borderRadius: "8px",
+    padding: "12px 20px",
+    background: "#0176d3",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "800",
+  },
+
+  paymentNote: {
+    margin: "9px 0 0",
+    color: "#475467",
+    fontSize: "11px",
+  },
+
+  /* MAIN */
 
   main: {
     width: "100%",
     maxWidth: "900px",
     margin: "0 auto",
-    padding: "40px 20px",
+    padding: "38px 20px",
     boxSizing: "border-box",
   },
 
@@ -810,40 +1554,46 @@ const styles = {
   },
 
   heroTitle: {
-    margin: "0",
-    fontSize: "28px",
-    fontWeight: "700",
+    margin: 0,
+    color: "#101828",
+    fontSize: "29px",
+    fontWeight: "800",
   },
 
   heroDescription: {
-    maxWidth: "650px",
-    margin: "9px auto 0",
-    color: "#667085",
+    maxWidth: "680px",
+    margin: "10px auto 0",
+    color: "#344054",
     fontSize: "14px",
-    lineHeight: "1.6",
+    fontWeight: "500",
+    lineHeight: "1.7",
   },
+
+  /* QUESTION */
 
   questionCard: {
     background: "#ffffff",
-    border: "1px solid #eaecf0",
+    border: "2px solid #98a2b3",
     borderRadius: "15px",
     padding: "16px",
     boxShadow:
-      "0 4px 18px rgba(0,0,0,0.05)",
+      "0 4px 18px rgba(0,0,0,0.06)",
   },
 
   textarea: {
     width: "100%",
     minHeight: "130px",
     resize: "vertical",
-    border: "1px solid #d0d5dd",
+    border: "2px solid #667085",
     borderRadius: "9px",
     padding: "13px",
     boxSizing: "border-box",
-    fontSize: "14px",
-    lineHeight: "1.5",
+    fontSize: "15px",
+    lineHeight: "1.6",
     fontFamily:
       "Inter, Arial, sans-serif",
+    color: "#101828",
+    background: "#ffffff",
     outline: "none",
   },
 
@@ -855,52 +1605,61 @@ const styles = {
   },
 
   hint: {
-    color: "#98a2b3",
-    fontSize: "11px",
+    color: "#344054",
+    fontSize: "12px",
+    fontWeight: "600",
   },
 
   askButton: {
     border: "none",
     borderRadius: "8px",
-    padding: "10px 20px",
+    padding: "11px 23px",
     background: "#0176d3",
     color: "#ffffff",
     cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: "600",
+    fontSize: "14px",
+    fontWeight: "800",
   },
 
+  /* QUICK QUESTIONS */
+
   quickSection: {
-    marginTop: "25px",
+    marginTop: "27px",
   },
 
   quickTitle: {
-    margin: "0 0 11px",
-    fontSize: "16px",
+    margin: "0 0 12px",
+    color: "#101828",
+    fontSize: "18px",
+    fontWeight: "800",
   },
 
   quickGrid: {
     display: "grid",
     gridTemplateColumns:
       "repeat(auto-fit, minmax(190px, 1fr))",
-    gap: "9px",
+    gap: "10px",
   },
 
   quickButton: {
+    minHeight: "48px",
     background: "#ffffff",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "11px",
+    border: "2px solid #98a2b3",
+    borderRadius: "9px",
+    padding: "12px",
     textAlign: "left",
     cursor: "pointer",
-    fontSize: "12px",
-    color: "#344054",
+    color: "#172033",
+    fontSize: "13px",
+    fontWeight: "700",
   },
+
+  /* ANSWER */
 
   answerCard: {
     marginTop: "25px",
     background: "#ffffff",
-    border: "1px solid #eaecf0",
+    border: "2px solid #98a2b3",
     borderRadius: "15px",
     padding: "20px",
     boxShadow:
@@ -909,14 +1668,17 @@ const styles = {
 
   answerTitle: {
     margin: "0 0 12px",
-    fontSize: "17px",
+    color: "#101828",
+    fontSize: "18px",
+    fontWeight: "800",
   },
 
   answer: {
     whiteSpace: "pre-wrap",
+    color: "#172033",
     fontSize: "14px",
-    lineHeight: "1.7",
-    color: "#344054",
+    lineHeight: "1.8",
+    fontWeight: "500",
   },
 
   illustration: {
@@ -928,28 +1690,34 @@ const styles = {
     borderRadius: "10px",
   },
 
+  /* LOADING */
+
   loading: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    color: "#667085",
+    color: "#344054",
     fontSize: "13px",
+    fontWeight: "600",
   },
 
   spinner: {
     width: "18px",
     height: "18px",
-    border: "3px solid #e4e7ec",
-    borderTop: "3px solid #0176d3",
+    border: "3px solid #d0d5dd",
+    borderTop:
+      "3px solid #0176d3",
     borderRadius: "50%",
   },
+
+  /* FOOTER */
 
   footer: {
     textAlign: "center",
     padding: "25px 20px",
-    color: "#98a2b3",
+    color: "#475467",
     fontSize: "11px",
-    lineHeight: "1.6",
+    lineHeight: "1.7",
   },
 };
 
