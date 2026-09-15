@@ -21,7 +21,11 @@ function App() {
       setInstallPrompt(null);
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener(
+      "beforeinstallprompt",
+      handleBeforeInstallPrompt
+    );
+
     window.addEventListener("appinstalled", handleAppInstalled);
 
     // Detect if the app is already installed
@@ -34,7 +38,11 @@ function App() {
         "beforeinstallprompt",
         handleBeforeInstallPrompt
       );
-      window.removeEventListener("appinstalled", handleAppInstalled);
+
+      window.removeEventListener(
+        "appinstalled",
+        handleAppInstalled
+      );
     };
   }, []);
 
@@ -94,19 +102,28 @@ function App() {
 
   return (
     <div className="app">
+
+      {/* Header */}
       <header className="header">
         <h1>Salesforce AI Assistant</h1>
 
-        <p>Your AI assistant for Salesforce & Business Solutions</p>
+        <p>
+          Your AI assistant for Technology & Business Solutions
+        </p>
 
-        <button className="install-button" onClick={installApp}>
+        <button
+          className="install-button"
+          onClick={installApp}
+        >
           {isInstalled
             ? "✅ App Installed"
             : "📲 Install Salesforce AI Assistant"}
         </button>
       </header>
 
+      {/* Main Content */}
       <main className="main-container">
+
         <img
           src={aiRobot}
           alt="Salesforce AI Assistant"
@@ -116,10 +133,12 @@ function App() {
         <h2>How can I help you?</h2>
 
         <p className="subtitle">
-          Ask any Salesforce or business scenario question.
+          Ask any Salesforce, ServiceNow, SAP, Python, Java, or other technology and business scenario question.
         </p>
 
+        {/* Quick Questions */}
         <div className="quick-buttons">
+
           <button
             onClick={() =>
               setQuestion(
@@ -127,7 +146,7 @@ function App() {
               )
             }
           >
-            Create a Salesforce Flow
+            Salesforce Flow
           </button>
 
           <button
@@ -143,20 +162,43 @@ function App() {
           <button
             onClick={() =>
               setQuestion(
-                "A business wants to automate its Salesforce approval process. How should I implement it?"
+                "Explain a Python programming concept with an example."
+              )
+            }
+          >
+            Python
+          </button>
+
+          <button
+            onClick={() =>
+              setQuestion(
+                "Explain a Java programming concept with an example."
+              )
+            }
+          >
+            Java
+          </button>
+
+          <button
+            onClick={() =>
+              setQuestion(
+                "A business wants to automate its approval process. How should I implement it?"
               )
             }
           >
             Business Scenario
           </button>
+
         </div>
 
+        {/* Question Input */}
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask your Salesforce or business question..."
+          placeholder="Ask any technology or business question..."
         />
 
+        {/* Ask AI */}
         <button
           className="ask-button"
           onClick={askQuestion}
@@ -165,32 +207,44 @@ function App() {
           {loading ? "Generating..." : "Ask AI →"}
         </button>
 
+        {/* AI Response */}
         {answer && (
           <div className="answer">
+
             <h3>AI Response</h3>
 
-            <div className="answer-content">{answer}</div>
+            <div className="answer-content">
+              {answer}
+            </div>
 
+            {/* AI Illustration */}
             {illustration && (
               <div className="illustration-section">
-                <h3>AI-Generated Salesforce Illustration</h3>
+
+                <h3>
+                  AI-Generated Illustration
+                </h3>
 
                 <img
                   src={`data:image/png;base64,${illustration}`}
-                  alt="AI-generated Salesforce illustration"
+                  alt="AI-generated illustration"
                   className="salesforce-illustration"
                 />
+
               </div>
             )}
 
+            {/* Documentation */}
             <button
               className="document-button"
               onClick={() => window.print()}
             >
               📄 Generate Documentation
             </button>
+
           </div>
         )}
+
       </main>
     </div>
   );
