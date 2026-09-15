@@ -1,39 +1,32 @@
-import { useState, useEffect } from "react";
-import "./App.css";
-import aiRobot from "./assets/salesforce-ai-robot.png";
-
+import { useEffect, useState } from "react";
 import {
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
   onAuthStateChanged,
-  signOut,
   sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
 } from "firebase/auth";
 
 import { auth, googleProvider } from "./firebase";
 
+const BACKEND_URL =
+  "https://salesforce-ai-assistant-8gvo.onrender.com";
+
 function App() {
   const [user, setUser] = useState(null);
 
+  const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const [authMode, setAuthMode] = useState("signin");
-  const [resetMode, setResetMode] = useState(false);
-
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [authSuccess, setAuthSuccess] = useState("");
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [illustration, setIllustration] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const [installPrompt, setInstallPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -43,203 +36,107 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event) => {
-      event.preventDefault();
-      setInstallPrompt(event);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    };
-
-    window.addEventListener(
-      "beforeinstallprompt",
-      handleBeforeInstallPrompt
-    );
-
-    window.addEventListener(
-      "appinstalled",
-      handleAppInstalled
-    );
-
-    if (
-      window.matchMedia("(display-mode: standalone)").matches
-    ) {
-      setIsInstalled(true);
-    }
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      );
-
-      window.removeEventListener(
-        "appinstalled",
-        handleAppInstalled
-      );
-    };
-  }, []);
-
   const handleEmailAuth = async (event) => {
     event.preventDefault();
 
-    setAuthError("");
-    setAuthSuccess("");
-
-    if (!email.trim()) {
-      setAuthError("Please enter your email address.");
-      return;
-    }
-
-    if (!password.trim()) {
-      setAuthError("Please enter your password.");
-      return;
-    }
-
-    if (authMode === "signup" && !confirmPassword.trim()) {
-      setAuthError("Please re-type your password.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setAuthError(
-        "Password must contain at least 6 characters."
-      );
-      return;
-    }
-
-    if (
-      authMode === "signup" &&
-      password !== confirmPassword
-    ) {
-      setAuthError("Passwords do not match.");
+    if (!email.trim() || !password.trim()) {
+      setMessage("Please enter your email and password.");
       return;
     }
 
     setAuthLoading(true);
+    setMessage("");
 
     try {
-      if (authMode === "signin") {
-        await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-      } else {
+      if (mode === "signup") {
         await createUserWithEmailAndPassword(
           auth,
-          email,
+          email.trim(),
           password
         );
-      }
 
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
-    } catch (error) {
-      console.error(error);
-
-      if (
-        error.code === "auth/invalid-credential" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/user-not-found"
-      ) {
-        setAuthError(
-          "Invalid email or password. If you forgot your password, use Forgot password."
-        );
-      } else if (
-        error.code === "auth/email-already-in-use"
-      ) {
-        setAuthError(
-          "An account already exists with this email. Please sign in or use Forgot password."
-        );
-      } else if (
-        error.code === "auth/weak-password"
-      ) {
-        setAuthError(
-          "Password is too weak. Use at least 6 characters."
-        );
-      } else if (
-        error.code === "auth/invalid-email"
-      ) {
-        setAuthError(
-          "Please enter a valid email address."
-        );
+        setMessage("Account created successfully.");
       } else {
-        setAuthError(
-          "Authentication failed. Please try again."
+        await signInWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password
         );
+
+        setMessage("Signed in successfully.");
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
+
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          setMessage("This email is already registered.");
+          break;
+
+        case "auth/invalid-email":
+          setMessage("Please enter a valid email address.");
+          break;
+
+        case "auth/weak-password":
+          setMessage("Password must be at least 6 characters.");
+          break;
+
+        case "auth/invalid-credential":
+        case "auth/wrong-password":
+        case "auth/user-not-found":
+          setMessage("Invalid email or password.");
+          break;
+
+        default:
+          setMessage(error.message || "Authentication failed.");
       }
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const handlePasswordReset = async (event) => {
-    event.preventDefault();
-
-    setAuthError("");
-    setAuthSuccess("");
-
-    if (!email.trim()) {
-      setAuthError(
-        "Please enter the email address associated with your account."
-      );
-      return;
-    }
-
+  const handleGoogleLogin = async () => {
     setAuthLoading(true);
-
-    try {
-      await sendPasswordResetEmail(auth, email);
-
-      setAuthSuccess(
-        "Password reset link sent. Please check your email inbox and spam folder."
-      );
-    } catch (error) {
-      console.error(error);
-
-      if (error.code === "auth/invalid-email") {
-        setAuthError(
-          "Please enter a valid email address."
-        );
-      } else if (error.code === "auth/user-not-found") {
-        setAuthError(
-          "No account was found with this email address."
-        );
-      } else {
-        setAuthError(
-          "Unable to send the password reset email. Please try again."
-        );
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setAuthError("");
-    setAuthSuccess("");
-    setAuthLoading(true);
+    setMessage("");
 
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      console.error(error);
+      console.error("Google sign-in error:", error);
+      setMessage(
+        error.message || "Google sign-in failed."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
-      if (
-        error.code ===
-        "auth/popup-closed-by-user"
-      ) {
-        setAuthError(
-          "Google sign-in was cancelled."
-        );
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setMessage("Enter your email address first.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setMessage("");
+
+    try {
+      await sendPasswordResetEmail(
+        auth,
+        email.trim()
+      );
+
+      setMessage(
+        "Password reset email sent. Please check your inbox."
+      );
+    } catch (error) {
+      console.error("Password reset error:", error);
+
+      if (error.code === "auth/user-not-found") {
+        setMessage("No account was found with this email.");
       } else {
-        setAuthError(
-          "Google sign-in failed. Please try again."
+        setMessage(
+          error.message || "Unable to send reset email."
         );
       }
     } finally {
@@ -254,45 +151,32 @@ function App() {
       setQuestion("");
       setAnswer("");
       setIllustration(null);
+      setMessage("");
     } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const installApp = async () => {
-    if (isInstalled) {
-      return;
-    }
-
-    if (!installPrompt) {
-      alert(
-        "Chrome is not showing the automatic install prompt yet. Please use Chrome's Install option from the browser address bar or menu."
-      );
-      return;
-    }
-
-    installPrompt.prompt();
-
-    const { outcome } =
-      await installPrompt.userChoice;
-
-    if (outcome === "accepted") {
-      setInstallPrompt(null);
+      console.error("Sign out error:", error);
     }
   };
 
   const askQuestion = async () => {
-    if (!question.trim()) return;
+    if (!question.trim()) {
+      setAnswer("Please enter a question.");
+      return;
+    }
+
+    if (!user) {
+      setAnswer("Please sign in before asking a question.");
+      return;
+    }
 
     setLoading(true);
     setAnswer("");
     setIllustration(null);
 
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
 
       const response = await fetch(
-        "https://salesforce-ai-assistant-8gvo.onrender.com/chat",
+        `${BACKEND_URL}/chat`,
         {
           method: "POST",
           headers: {
@@ -300,17 +184,17 @@ function App() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            question: question,
+            question: question.trim(),
           }),
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
+      const data = await response.json().catch(() => null);
 
+      if (!response.ok) {
         if (
           response.status === 403 &&
-          errorData?.upgrade_required
+          data?.upgrade_required
         ) {
           setAnswer(
             "🔒 You've used your 10 free questions for this month. Upgrade to Pro for ₹100/month to continue."
@@ -318,22 +202,28 @@ function App() {
           return;
         }
 
+        if (response.status === 401) {
+          setAnswer(
+            "Your login session has expired. Please sign out and sign in again."
+          );
+          return;
+        }
+
         throw new Error(
-          `Server error: ${response.status}`
+          data?.detail ||
+            `Server error: ${response.status}`
         );
       }
 
-      const data = await response.json();
-
       setAnswer(
-        data.answer || "No answer received."
+        data?.answer || "No answer received."
       );
 
       setIllustration(
-        data.illustration || null
+        data?.illustration || null
       );
     } catch (error) {
-      console.error(error);
+      console.error("Chat error:", error);
 
       setAnswer(
         "Unable to connect to the AI backend. Please try again."
@@ -343,145 +233,84 @@ function App() {
     }
   };
 
-  if (!user) {
-    if (resetMode) {
-      return (
-        <div className="auth-page">
-          <div className="auth-card">
-
-            <img
-              src={aiRobot}
-              alt="AI Assistant"
-              className="auth-logo"
-            />
-
-            <h1>
-              Reset Password
-            </h1>
-
-            <p className="auth-subtitle">
-              Enter your email address and we'll send you a password reset link.
-            </p>
-
-            <form onSubmit={handlePasswordReset}>
-
-              <input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
-                autoComplete="email"
-              />
-
-              {authError && (
-                <div className="auth-error">
-                  {authError}
-                </div>
-              )}
-
-              {authSuccess && (
-                <div className="auth-success">
-                  {authSuccess}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="continue-button"
-                disabled={authLoading}
-              >
-                {authLoading
-                  ? "Sending..."
-                  : "Send Reset Link"}
-              </button>
-
-            </form>
-
-            <button
-              className="back-button"
-              onClick={() => {
-                setResetMode(false);
-                setAuthMode("signin");
-                setAuthError("");
-                setAuthSuccess("");
-              }}
-            >
-              ← Back to Sign In
-            </button>
-
-          </div>
-        </div>
-      );
+  const handleKeyDown = (event) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      askQuestion();
     }
+  };
 
+  const quickQuestions = [
+    "What is Salesforce Flow?",
+    "Explain Salesforce OWD",
+    "What is an Apex trigger?",
+    "What is LWC?",
+  ];
+
+  if (!user) {
     return (
-      <div className="auth-page">
-
-        <div className="auth-card">
-
+      <div style={styles.page}>
+        <div style={styles.authCard}>
           <img
-            src={aiRobot}
-            alt="AI Assistant"
-            className="auth-logo"
+            src="/assets/salesforce-ai-robot-B7rriz3-.png"
+            alt="Salesforce AI Assistant"
+            style={styles.robotSmall}
           />
 
-          <h1>
+          <h1 style={styles.title}>
             Salesforce AI Assistant
           </h1>
 
-          <p className="auth-subtitle">
+          <p style={styles.subtitle}>
             Ask anything in any language.
           </p>
 
-          <div className="auth-tabs">
-
+          <div style={styles.tabs}>
             <button
-              className={
-                authMode === "signin"
-                  ? "active"
-                  : ""
-              }
+              type="button"
               onClick={() => {
-                setAuthMode("signin");
-                setAuthError("");
-                setAuthSuccess("");
-                setPassword("");
-                setConfirmPassword("");
+                setMode("signin");
+                setMessage("");
+              }}
+              style={{
+                ...styles.tab,
+                ...(mode === "signin"
+                  ? styles.activeTab
+                  : {}),
               }}
             >
               Sign In
             </button>
 
             <button
-              className={
-                authMode === "signup"
-                  ? "active"
-                  : ""
-              }
+              type="button"
               onClick={() => {
-                setAuthMode("signup");
-                setAuthError("");
-                setAuthSuccess("");
-                setPassword("");
-                setConfirmPassword("");
+                setMode("signup");
+                setMessage("");
+              }}
+              style={{
+                ...styles.tab,
+                ...(mode === "signup"
+                  ? styles.activeTab
+                  : {}),
               }}
             >
               Create Account
             </button>
-
           </div>
 
           <form onSubmit={handleEmailAuth}>
-
             <input
               type="email"
               placeholder="Email address"
               value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
+              onChange={(event) =>
+                setEmail(event.target.value)
               }
+              style={styles.input}
               autoComplete="email"
             />
 
@@ -489,294 +318,608 @@ function App() {
               type="password"
               placeholder="Password"
               value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
+              onChange={(event) =>
+                setPassword(event.target.value)
               }
+              style={styles.input}
               autoComplete={
-                authMode === "signin"
-                  ? "current-password"
-                  : "new-password"
+                mode === "signup"
+                  ? "new-password"
+                  : "current-password"
               }
             />
 
-            {authMode === "signup" && (
-              <input
-                type="password"
-                placeholder="Re-type password"
-                value={confirmPassword}
-                onChange={(e) =>
-                  setConfirmPassword(e.target.value)
-                }
-                autoComplete="new-password"
-              />
-            )}
-
-            {authMode === "signin" && (
-              <div className="forgot-password-wrapper">
-                <button
-                  type="button"
-                  className="forgot-password"
-                  onClick={() => {
-                    setResetMode(true);
-                    setAuthError("");
-                    setAuthSuccess("");
-                  }}
-                >
-                  Forgot password?
-                </button>
-              </div>
-            )}
-
-            {authError && (
-              <div className="auth-error">
-                {authError}
-              </div>
-            )}
-
-            {authSuccess && (
-              <div className="auth-success">
-                {authSuccess}
-              </div>
-            )}
-
             <button
               type="submit"
-              className="continue-button"
               disabled={authLoading}
+              style={styles.primaryButton}
             >
               {authLoading
                 ? "Please wait..."
-                : authMode === "signin"
+                : mode === "signin"
                 ? "Continue"
                 : "Create Account"}
             </button>
-
           </form>
 
-          <div className="divider">
+          {mode === "signin" && (
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              style={styles.linkButton}
+            >
+              Forgot password?
+            </button>
+          )}
+
+          <div style={styles.divider}>
             <span>OR</span>
           </div>
 
           <button
-            className="google-button"
-            onClick={handleGoogleSignIn}
+            type="button"
+            onClick={handleGoogleLogin}
             disabled={authLoading}
+            style={styles.googleButton}
           >
-            <span className="google-icon">
+            <span style={styles.googleIcon}>
               G
             </span>
-
             Continue with Google
           </button>
 
-          <p className="terms">
+          {message && (
+            <div style={styles.message}>
+              {message}
+            </div>
+          )}
+
+          <p style={styles.terms}>
             By continuing, you agree to our{" "}
-            <a
-              href="#"
-              onClick={(e) =>
-                e.preventDefault()
-              }
-            >
+            <a href="#" style={styles.termsLink}>
               Terms
             </a>{" "}
             and{" "}
-            <a
-              href="#"
-              onClick={(e) =>
-                e.preventDefault()
-              }
-            >
+            <a href="#" style={styles.termsLink}>
               Privacy Policy
             </a>
             .
           </p>
-
         </div>
-
       </div>
     );
   }
 
   return (
-    <div className="app">
+    <div style={styles.appPage}>
+      <header style={styles.header}>
+        <div style={styles.brand}>
+          <img
+            src="/assets/salesforce-ai-robot-B7rriz3-.png"
+            alt="AI Assistant"
+            style={styles.headerRobot}
+          />
 
-      <header className="header">
+          <div>
+            <h1 style={styles.headerTitle}>
+              Salesforce AI Assistant
+            </h1>
 
-        <div>
-          <h1>
-            Salesforce AI Assistant
-          </h1>
-
-          <p>
-            Your AI assistant for Technology & Business Solutions
-          </p>
+            <p style={styles.headerSubtitle}>
+              Ask anything in any language.
+            </p>
+          </div>
         </div>
 
-        <div className="header-actions">
-
-          <span className="user-email">
+        <div style={styles.userArea}>
+          <span style={styles.userEmail}>
             {user.email}
           </span>
 
           <button
-            className="signout-button"
+            type="button"
             onClick={handleSignOut}
+            style={styles.signOutButton}
           >
             Sign Out
           </button>
-
-          <button
-            className="install-button"
-            onClick={installApp}
-          >
-            {isInstalled
-              ? "✅ App Installed"
-              : "📲 Install App"}
-          </button>
-
         </div>
-
       </header>
 
-      <main className="main-container">
+      <main style={styles.main}>
+        <section style={styles.hero}>
+          <img
+            src="/assets/salesforce-ai-robot-B7rriz3-.png"
+            alt="Salesforce AI Assistant"
+            style={styles.robotMain}
+          />
 
-        <img
-          src={aiRobot}
-          alt="AI Assistant"
-          className="ai-robot"
-        />
+          <h2 style={styles.heroTitle}>
+            How can I help you today?
+          </h2>
 
-        <h2>
-          How can I help you?
-        </h2>
+          <p style={styles.heroText}>
+            Ask Salesforce questions about Admin,
+            Development, Testing, Apex, LWC, CPQ,
+            Sales Cloud, Service Cloud and more.
+          </p>
+        </section>
 
-        <p className="subtitle">
-          Ask any technology, business, or general question in any language.
-        </p>
-
-        <div className="quick-buttons">
-
-          <button
-            onClick={() =>
-              setQuestion(
-                "How can I create a Salesforce Flow to automatically update a field?"
-              )
+        <section style={styles.chatCard}>
+          <textarea
+            value={question}
+            onChange={(event) =>
+              setQuestion(event.target.value)
             }
-          >
-            Salesforce Flow
-          </button>
+            onKeyDown={handleKeyDown}
+            placeholder="Ask your Salesforce question..."
+            style={styles.textarea}
+            rows={5}
+          />
 
-          <button
-            onClick={() =>
-              setQuestion(
-                "How can I automate lead assignment in Salesforce?"
+          <div style={styles.actionRow}>
+            <span style={styles.enterHint}>
+              Press Enter to ask
+            </span>
+
+            <button
+              type="button"
+              onClick={askQuestion}
+              disabled={loading}
+              style={styles.askButton}
+            >
+              {loading ? "Thinking..." : "Ask AI"}
+            </button>
+          </div>
+        </section>
+
+        <section style={styles.quickSection}>
+          <h3 style={styles.sectionTitle}>
+            Quick Questions
+          </h3>
+
+          <div style={styles.quickGrid}>
+            {quickQuestions.map(
+              (quickQuestion) => (
+                <button
+                  key={quickQuestion}
+                  type="button"
+                  onClick={() => {
+                    setQuestion(quickQuestion);
+                    setAnswer("");
+                    setIllustration(null);
+                  }}
+                  style={styles.quickButton}
+                >
+                  {quickQuestion}
+                </button>
               )
-            }
-          >
-            Lead Automation
-          </button>
+            )}
+          </div>
+        </section>
 
-          <button
-            onClick={() =>
-              setQuestion(
-                "Explain a Python programming concept with an example."
-              )
-            }
-          >
-            Python
-          </button>
+        {loading && (
+          <section style={styles.answerCard}>
+            <div style={styles.loading}>
+              <div style={styles.spinner}></div>
+              <span>
+                Salesforce AI is thinking...
+              </span>
+            </div>
+          </section>
+        )}
 
-          <button
-            onClick={() =>
-              setQuestion(
-                "Explain a Java programming concept with an example."
-              )
-            }
-          >
-            Java
-          </button>
-
-          <button
-            onClick={() =>
-              setQuestion(
-                "How can I create an automated test using Playwright?"
-              )
-            }
-          >
-            Playwright
-          </button>
-
-          <button
-            onClick={() =>
-              setQuestion(
-                "A business wants to automate its approval process. How should I implement it?"
-              )
-            }
-          >
-            Business Scenario
-          </button>
-
-        </div>
-
-        <textarea
-          value={question}
-          onChange={(e) =>
-            setQuestion(e.target.value)
-          }
-          placeholder="Ask anything in any language..."
-        />
-
-        <button
-          className="ask-button"
-          onClick={askQuestion}
-          disabled={loading}
-        >
-          {loading
-            ? "Generating..."
-            : "Ask AI →"}
-        </button>
-
-        {answer && (
-          <div className="answer">
-
-            <h3>
+        {!loading && answer && (
+          <section style={styles.answerCard}>
+            <h3 style={styles.answerTitle}>
               AI Response
             </h3>
 
-            <div className="answer-content">
+            <div style={styles.answerText}>
               {answer}
             </div>
 
             {illustration && (
-              <div className="illustration-section">
-
-                <h3>
-                  AI-Generated Illustration
-                </h3>
-
-                <img
-                  src={`data:image/png;base64,${illustration}`}
-                  alt="AI-generated illustration"
-                  className="salesforce-illustration"
-                />
-
-              </div>
+              <img
+                src={illustration}
+                alt="AI illustration"
+                style={styles.illustration}
+              />
             )}
-
-            <button
-              className="document-button"
-              onClick={() => window.print()}
-            >
-              📄 Generate Documentation
-            </button>
-
-          </div>
+          </section>
         )}
-
       </main>
 
+      <footer style={styles.footer}>
+        <p>
+          Salesforce AI Assistant
+        </p>
+        <p>
+          AI-powered Salesforce learning
+          assistant
+        </p>
+      </footer>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background:
+      "linear-gradient(135deg, #f5f8ff, #eef3ff)",
+    padding: "20px",
+    boxSizing: "border-box",
+    fontFamily:
+      "Inter, Arial, sans-serif",
+  },
+
+  authCard: {
+    width: "100%",
+    maxWidth: "430px",
+    background: "#ffffff",
+    borderRadius: "20px",
+    padding: "32px",
+    boxSizing: "border-box",
+    boxShadow:
+      "0 15px 45px rgba(0, 0, 0, 0.10)",
+    textAlign: "center",
+  },
+
+  robotSmall: {
+    width: "120px",
+    height: "120px",
+    objectFit: "contain",
+    display: "block",
+    margin: "0 auto 12px",
+  },
+
+  title: {
+    margin: "0",
+    fontSize: "28px",
+    fontWeight: "700",
+    color: "#172033",
+  },
+
+  subtitle: {
+    margin: "8px 0 24px",
+    color: "#667085",
+    fontSize: "15px",
+  },
+
+  tabs: {
+    display: "flex",
+    gap: "8px",
+    marginBottom: "20px",
+    background: "#f2f4f7",
+    borderRadius: "10px",
+    padding: "4px",
+  },
+
+  tab: {
+    flex: 1,
+    border: "none",
+    background: "transparent",
+    padding: "11px 8px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+
+  activeTab: {
+    background: "#ffffff",
+    boxShadow:
+      "0 1px 5px rgba(0,0,0,0.10)",
+  },
+
+  input: {
+    width: "100%",
+    padding: "13px 14px",
+    marginBottom: "12px",
+    border: "1px solid #d0d5dd",
+    borderRadius: "9px",
+    boxSizing: "border-box",
+    fontSize: "15px",
+    outline: "none",
+  },
+
+  primaryButton: {
+    width: "100%",
+    border: "none",
+    borderRadius: "9px",
+    padding: "13px",
+    background: "#0176d3",
+    color: "#ffffff",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+
+  linkButton: {
+    marginTop: "15px",
+    border: "none",
+    background: "transparent",
+    color: "#0176d3",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+
+  divider: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "22px 0",
+    color: "#98a2b3",
+    fontSize: "12px",
+  },
+
+  googleButton: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "9px",
+    border: "1px solid #d0d5dd",
+    background: "#ffffff",
+    cursor: "pointer",
+    fontSize: "15px",
+    fontWeight: "600",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+  },
+
+  googleIcon: {
+    fontWeight: "700",
+    fontSize: "18px",
+  },
+
+  message: {
+    marginTop: "16px",
+    padding: "10px",
+    borderRadius: "8px",
+    background: "#f2f4f7",
+    color: "#344054",
+    fontSize: "13px",
+  },
+
+  terms: {
+    marginTop: "22px",
+    color: "#98a2b3",
+    fontSize: "12px",
+    lineHeight: "1.5",
+  },
+
+  termsLink: {
+    color: "#667085",
+  },
+
+  appPage: {
+    minHeight: "100vh",
+    background: "#f7f9fc",
+    fontFamily:
+      "Inter, Arial, sans-serif",
+    color: "#172033",
+  },
+
+  header: {
+    background: "#ffffff",
+    borderBottom: "1px solid #e4e7ec",
+    padding: "14px 24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+  },
+
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  headerRobot: {
+    width: "55px",
+    height: "55px",
+    objectFit: "contain",
+  },
+
+  headerTitle: {
+    margin: 0,
+    fontSize: "20px",
+    fontWeight: "700",
+  },
+
+  headerSubtitle: {
+    margin: "3px 0 0",
+    fontSize: "12px",
+    color: "#667085",
+  },
+
+  userArea: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  userEmail: {
+    fontSize: "13px",
+    color: "#667085",
+  },
+
+  signOutButton: {
+    border: "1px solid #d0d5dd",
+    background: "#ffffff",
+    borderRadius: "8px",
+    padding: "8px 13px",
+    cursor: "pointer",
+    fontSize: "13px",
+  },
+
+  main: {
+    width: "100%",
+    maxWidth: "900px",
+    margin: "0 auto",
+    padding: "45px 20px",
+    boxSizing: "border-box",
+  },
+
+  hero: {
+    textAlign: "center",
+    marginBottom: "30px",
+  },
+
+  robotMain: {
+    width: "120px",
+    height: "120px",
+    objectFit: "contain",
+    margin: "0 auto 12px",
+    display: "block",
+  },
+
+  heroTitle: {
+    fontSize: "30px",
+    margin: "0 0 8px",
+  },
+
+  heroText: {
+    maxWidth: "650px",
+    margin: "0 auto",
+    color: "#667085",
+    lineHeight: "1.6",
+    fontSize: "15px",
+  },
+
+  chatCard: {
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "18px",
+    boxShadow:
+      "0 5px 20px rgba(0, 0, 0, 0.06)",
+    border: "1px solid #eaecf0",
+  },
+
+  textarea: {
+    width: "100%",
+    resize: "vertical",
+    minHeight: "130px",
+    border: "1px solid #d0d5dd",
+    borderRadius: "10px",
+    padding: "14px",
+    boxSizing: "border-box",
+    fontSize: "15px",
+    fontFamily:
+      "Inter, Arial, sans-serif",
+    outline: "none",
+  },
+
+  actionRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: "12px",
+  },
+
+  enterHint: {
+    color: "#98a2b3",
+    fontSize: "12px",
+  },
+
+  askButton: {
+    border: "none",
+    borderRadius: "9px",
+    padding: "11px 22px",
+    background: "#0176d3",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+
+  quickSection: {
+    marginTop: "28px",
+  },
+
+  sectionTitle: {
+    fontSize: "17px",
+    marginBottom: "12px",
+  },
+
+  quickGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: "10px",
+  },
+
+  quickButton: {
+    border: "1px solid #d0d5dd",
+    background: "#ffffff",
+    borderRadius: "9px",
+    padding: "12px",
+    cursor: "pointer",
+    textAlign: "left",
+    fontSize: "13px",
+  },
+
+  answerCard: {
+    marginTop: "28px",
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "22px",
+    border: "1px solid #eaecf0",
+    boxShadow:
+      "0 5px 20px rgba(0, 0, 0, 0.05)",
+  },
+
+  answerTitle: {
+    marginTop: 0,
+    fontSize: "18px",
+  },
+
+  answerText: {
+    whiteSpace: "pre-wrap",
+    lineHeight: "1.7",
+    fontSize: "15px",
+    color: "#344054",
+  },
+
+  illustration: {
+    display: "block",
+    maxWidth: "100%",
+    maxHeight: "350px",
+    objectFit: "contain",
+    margin: "20px auto 0",
+    borderRadius: "10px",
+  },
+
+  loading: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: "#667085",
+  },
+
+  spinner: {
+    width: "20px",
+    height: "20px",
+    border: "3px solid #e4e7ec",
+    borderTop:
+      "3px solid #0176d3",
+    borderRadius: "50%",
+    animation:
+      "spin 1s linear infinite",
+  },
+
+  footer: {
+    textAlign: "center",
+    padding: "25px",
+    color: "#98a2b3",
+    fontSize: "12px",
+  },
+};
 
 export default App;
