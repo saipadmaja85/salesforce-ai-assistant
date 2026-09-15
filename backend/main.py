@@ -10,7 +10,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+    "http://localhost:5173",
+    "https://frontend-rho-liart-ck2le9peci.vercel.app",
+    "https://www.salesforce-ai-assistant.com",
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
