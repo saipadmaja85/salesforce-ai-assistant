@@ -47,11 +47,12 @@ body {
 
 /* Robot */
 
-.ai-robot {
-  width: 105px;
-  height: 105px;
+.robot-image {
+  width: 90px;
+  height: 90px;
   object-fit: contain;
-  margin-bottom: 25px;
+  display: block;
+  margin: 0 auto 10px;
 }
 
 /* Heading */
