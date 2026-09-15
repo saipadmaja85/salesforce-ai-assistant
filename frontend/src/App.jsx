@@ -8,6 +8,7 @@ function App() {
   const [illustration, setIllustration] = useState(null);
   const [loading, setLoading] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
@@ -15,20 +16,36 @@ function App() {
       setInstallPrompt(event);
     };
 
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    // Detect if the app is already installed
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstalled(true);
+    }
 
     return () => {
       window.removeEventListener(
         "beforeinstallprompt",
         handleBeforeInstallPrompt
       );
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
   const installApp = async () => {
+    if (isInstalled) {
+      return;
+    }
+
     if (!installPrompt) {
       alert(
-        "To install the app, open your browser menu and choose 'Install App' or 'Add to Home Screen'."
+        "Chrome is not showing the automatic install prompt yet. Please use Chrome's Install option from the browser address bar or menu."
       );
       return;
     }
@@ -83,7 +100,9 @@ function App() {
         <p>Your AI assistant for Salesforce & Business Solutions</p>
 
         <button className="install-button" onClick={installApp}>
-          📲 Install Salesforce AI Assistant
+          {isInstalled
+            ? "✅ App Installed"
+            : "📲 Install Salesforce AI Assistant"}
         </button>
       </header>
 
