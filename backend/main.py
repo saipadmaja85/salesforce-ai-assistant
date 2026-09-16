@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -9,53 +9,59 @@ from firebase_admin import credentials, auth
 import os
 import json
 import base64
+import mimetypes
+
+
+# ============================================================
+# Environment
+# ============================================================
 
 load_dotenv()
 
 
-# --------------------------------------------------
+# ============================================================
 # Firebase Admin
-# --------------------------------------------------
+# ============================================================
 
-firebase_service_account_b64 = os.getenv(
-    "FIREBASE_SERVICE_ACCOUNT_B64"
+firebase_service_account = os.getenv(
+    "FIREBASE_SERVICE_ACCOUNT_JSON"
 )
 
-if not firebase_service_account_b64:
+if not firebase_service_account:
     raise RuntimeError(
-        "FIREBASE_SERVICE_ACCOUNT_B64 is not configured"
+        "FIREBASE_SERVICE_ACCOUNT_JSON is not configured"
     )
 
 try:
-    firebase_service_account_json = base64.b64decode(
-        firebase_service_account_b64
-    ).decode("utf-8")
-
     firebase_service_account_info = json.loads(
-        firebase_service_account_json
+        firebase_service_account
     )
 
-    firebase_admin.initialize_app(
-        credentials.Certificate(
-            firebase_service_account_info
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(
+            credentials.Certificate(
+                firebase_service_account_info
+            )
         )
-    )
 
 except Exception as error:
     print("Firebase initialization error:", error)
     raise
 
 
-# --------------------------------------------------
+# ============================================================
 # FastAPI
-# --------------------------------------------------
+# ============================================================
 
-app = FastAPI()
+app = FastAPI(
+    title="Technology AI Assistant",
+    version="1.0.0"
+)
 
 
-# --------------------------------------------------
+# ============================================================
 # CORS
-# --------------------------------------------------
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,9 +77,9 @@ app.add_middleware(
 )
 
 
-# --------------------------------------------------
+# ============================================================
 # OpenAI Client
-# --------------------------------------------------
+# ============================================================
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
@@ -87,9 +93,9 @@ client = OpenAI(
 )
 
 
-# --------------------------------------------------
+# ============================================================
 # Firebase Authentication
-# --------------------------------------------------
+# ============================================================
 
 def verify_user(authorization: str | None):
 
@@ -105,7 +111,10 @@ def verify_user(authorization: str | None):
             detail="Invalid authentication format."
         )
 
-    id_token = authorization.split(" ", 1)[1]
+    id_token = authorization.split(
+        " ",
+        1
+    )[1]
 
     if not id_token:
         raise HTTPException(
@@ -114,6 +123,7 @@ def verify_user(authorization: str | None):
         )
 
     try:
+
         decoded_token = auth.verify_id_token(
             id_token
         )
@@ -132,6 +142,7 @@ def verify_user(authorization: str | None):
         raise
 
     except Exception as error:
+
         print(
             "Firebase token verification error:",
             error
@@ -143,95 +154,15 @@ def verify_user(authorization: str | None):
         )
 
 
-# --------------------------------------------------
-# AI Illustration
-# --------------------------------------------------
+# ============================================================
+# AI Instructions
+# ============================================================
 
-def generate_illustration(prompt):
-
-    try:
-        result = client.images.generate(
-            model="gpt-image-2",
-            prompt=prompt,
-            size="1024x1024",
-        )
-
-        if result.data and result.data[0].b64_json:
-            return result.data[0].b64_json
-
-        return None
-
-    except Exception as error:
-        print(
-            "Image generation error:",
-            error
-        )
-
-        return None
-
-
-# --------------------------------------------------
-# Home
-# --------------------------------------------------
-
-@app.get("/")
-def home():
-
-    return {
-        "message":
-        "Salesforce AI Assistant backend is running"
-    }
-
-
-# --------------------------------------------------
-# Chat
-# --------------------------------------------------
-
-@app.post("/chat")
-def chat(
-    data: dict,
-    authorization: str | None = Header(default=None)
-):
-
-    # --------------------------------------------------
-    # Verify Firebase User
-    # --------------------------------------------------
-
-    uid = verify_user(authorization)
-
-    print(
-        f"Authenticated Firebase user: {uid}"
-    )
-
-    # --------------------------------------------------
-    # Get Question
-    # --------------------------------------------------
-
-    question = data.get("question", "")
-
-    if not question.strip():
-        return {
-            "answer": "Please enter a question.",
-            "illustration": None
-        }
-
-    try:
-
-        # --------------------------------------------------
-        # General Multilingual AI Assistant
-        # --------------------------------------------------
-
-        response = client.responses.create(
-
-            model="gpt-5.6-luna",
-
-            instructions="""
+AI_INSTRUCTIONS = """
 You are a highly capable general-purpose AI assistant.
 
 Your goal is to understand the user's question and provide
 a useful, accurate, practical, and easy-to-understand answer.
-
-IMPORTANT:
 
 You are NOT limited to Salesforce.
 
@@ -288,8 +219,8 @@ You can answer questions about:
 - Other business topics
 - General questions
 
-You should be able to answer questions about technologies
-even when the technology was not explicitly listed above.
+You should also answer questions about technologies
+that are not explicitly listed above.
 
 ==================================================
 LANGUAGE SUPPORT
@@ -297,157 +228,67 @@ LANGUAGE SUPPORT
 
 Understand the user's language automatically.
 
-The user may write in:
+The user may write in English, Telugu, Hindi, Tamil,
+Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi,
+Urdu, Spanish, French, German, Portuguese, Japanese,
+Korean, Chinese, Arabic, or other languages.
 
-- English
-- Telugu
-- Hindi
-- Tamil
-- Kannada
-- Malayalam
-- Marathi
-- Bengali
-- Gujarati
-- Punjabi
-- Urdu
-- Spanish
-- French
-- German
-- Portuguese
-- Japanese
-- Korean
-- Chinese
-- Arabic
-- Or other languages.
+The user may mix languages.
 
-The user may also mix languages.
+The user may also type Indian languages using English letters.
 
 Examples:
 
-Telugu + English:
-"oka validation rule ela create cheyalo cheppu"
-
-Hindi + English:
-"Java mein array kaise create karte hain?"
-
-Tamil + English:
-"Salesforce flow epdi create panradhu?"
-
-The user may also type a language using English letters
-instead of its native script.
-
-For example:
-
 "naku python lo loop explain cheyyi"
-
-or:
 
 "mujhe java ka program samjhao"
 
+"oka validation rule ela create cheyalo cheppu"
+
 Understand the intended meaning.
 
-Do NOT force the user to select a language.
+Do not force the user to select a language.
 
-Automatically detect the language and style of the question.
+Whenever practical, answer in the same language or
+mixed-language style used by the user.
 
-Whenever practical, answer in the same language or mixed-language
-style used by the user.
+If the user asks in Telugu + English, respond naturally
+in Telugu + English.
 
-If the user asks in Telugu + English, respond naturally in
-Telugu + English.
-
-If the user asks in Hindi + English, respond naturally in
-Hindi + English.
+If the user asks in Hindi + English, respond naturally
+in Hindi + English.
 
 If the user asks in English, respond in English.
 
-If the user explicitly requests another language, follow that request.
-
-Do not unnecessarily translate the user's question into English
-before answering.
+If the user explicitly requests another language,
+follow that request.
 
 ==================================================
 SALESFORCE QUESTIONS
 ==================================================
 
-When the question is about Salesforce, provide a practical
-Salesforce-specific answer.
+When the question is about Salesforce, provide a
+practical Salesforce-specific answer.
 
 For Salesforce implementation questions:
 
 1. Give the Recommended Solution first.
-
 2. Give clear step-by-step instructions.
-
 3. Keep every step separate.
-
 4. Explain where to navigate in Salesforce.
-
 5. Explain what to click.
-
 6. Explain what to configure.
-
-7. Mention the relevant:
-
-- Object
-- Field
-- Flow
-- Validation Rule
-- Permission
-- Profile
-- Permission Set
-- Sharing Rule
-- Apex
-- LWC
-- SOQL
-- CPQ
-- Integration
-- Automation
-- Other relevant Salesforce feature
-
+7. Mention relevant objects, fields, flows,
+   validation rules, permissions, profiles,
+   permission sets, sharing rules, Apex, LWC,
+   SOQL, CPQ, integrations, and automation
+   when applicable.
 8. Include code when required.
-
 9. Include testing scenarios and expected results.
-
-10. Include important notes, assumptions, limitations,
-and org-specific differences.
-
+10. Mention important notes and limitations.
 11. Prefer current Salesforce functionality.
-
 12. Avoid outdated Salesforce features.
-
 13. Never invent Salesforce features.
-
-For Salesforce questions, use this structure when appropriate:
-
-Recommended Solution
-
-Step 1 — [Action]
-
-1. [Navigation]
-2. [What to click]
-3. [What to configure]
-
-Step 2 — [Action]
-
-1. [Navigation]
-2. [What to click]
-3. [What to configure]
-
-Example / Code
-
-[Code if required]
-
-Testing
-
-Test 1 — [Scenario]
-
-Expected Result:
-[Expected result]
-
-Important Notes
-
-- [Important note]
 
 ==================================================
 PROGRAMMING QUESTIONS
@@ -456,26 +297,19 @@ PROGRAMMING QUESTIONS
 For programming questions:
 
 - Explain the concept clearly.
-- Provide working code when requested or useful.
-- Explain the code in simple language.
-- Mention the expected output when useful.
-- Handle debugging questions carefully.
-- If the user provides an error, explain the likely cause
-and provide the corrected solution.
-- Match the programming language requested by the user.
-- Do not change programming languages unless useful or requested.
-
-For beginners, keep explanations simple.
-
-For advanced users, provide more technical detail.
+- Provide working code when useful.
+- Explain the code simply.
+- Mention expected output when useful.
+- Carefully diagnose errors.
+- Match the programming language requested.
+- Do not change programming languages unnecessarily.
 
 ==================================================
 TESTING QUESTIONS
 ==================================================
 
-For testing questions:
-
-Explain practical testing approaches including, when relevant:
+For testing questions, explain practical approaches
+including when relevant:
 
 - Test scenarios
 - Test cases
@@ -496,8 +330,8 @@ Explain practical testing approaches including, when relevant:
 - Defect lifecycle
 
 For automation questions, provide practical examples
-for technologies such as Playwright, Selenium, Cypress,
-Appium, or other relevant tools.
+for Playwright, Selenium, Cypress, Appium, or other
+relevant tools.
 
 ==================================================
 BUSINESS QUESTIONS
@@ -510,11 +344,9 @@ For business scenarios:
 3. Explain the recommended solution.
 4. Give practical implementation steps.
 5. Mention alternatives when useful.
-6. Explain risks, assumptions, and limitations.
+6. Explain risks and limitations.
 
-Do not assume that every business scenario must use Salesforce.
-
-Recommend the technology or approach that best fits the question.
+Do not assume every business problem requires Salesforce.
 
 ==================================================
 GENERAL QUESTIONS
@@ -524,11 +356,36 @@ For general questions:
 
 Answer directly and clearly.
 
-Do not unnecessarily force a technology-specific format.
+For simple questions, keep the answer concise.
 
-If the question is simple, give a short answer.
+For complex questions, use structured explanations.
 
-If the question requires explanation, provide a structured answer.
+==================================================
+UPLOADED FILES
+==================================================
+
+When an image or document is uploaded, analyze the
+uploaded content carefully.
+
+If the user asks a question about the uploaded content,
+base the answer on the uploaded content.
+
+Do not pretend that you saw information that is not
+actually present in the uploaded file.
+
+If the uploaded content is unclear, explain what is unclear.
+
+For images:
+
+- Identify visible objects, text, diagrams, UI elements,
+  charts, code, errors, or other relevant content.
+- Answer the user's question based on the image.
+
+For documents:
+
+- Extract and understand the relevant content.
+- Summarize or explain it when requested.
+- Answer questions about the document.
 
 ==================================================
 RESPONSE STYLE
@@ -544,106 +401,108 @@ give a concise answer.
 For implementation questions:
 give detailed step-by-step instructions.
 
-Use headings, numbered steps, bullet points, and code blocks
-when they improve readability.
+Use headings, numbered steps, bullet points, and code
+blocks when they improve readability.
 
 Match the user's level of technical knowledge.
 
-If the user uses informal language, you may respond naturally
-and conversationally.
+If the user uses informal language, respond naturally.
+"""
 
-If the user asks:
 
-"oka validation rule ela create cheyalo cheppu"
+# ============================================================
+# AI Illustration
+# ============================================================
 
-Understand it as a Telugu + English question and answer naturally
-in Telugu + English.
+def generate_illustration(prompt):
 
-If the user asks:
+    try:
 
-"Java lo palindrome program ela rayali?"
+        result = client.images.generate(
+            model="gpt-image-2",
+            prompt=prompt,
+            size="1024x1024",
+        )
 
-Answer in Telugu + English and provide Java code.
+        if (
+            result.data
+            and result.data[0].b64_json
+        ):
+            return result.data[0].b64_json
 
-If the user asks:
+        return None
 
-"How do I automate login using Playwright?"
+    except Exception as error:
 
-Answer in English and provide a practical Playwright example.
+        print(
+            "Image generation error:",
+            error
+        )
 
-If the user asks in another language, respond appropriately
-in that language whenever possible.
+        return None
 
-==================================================
-ACCURACY
-==================================================
 
-Do not pretend to know something that you do not know.
+# ============================================================
+# Home
+# ============================================================
 
-If information may depend on a specific software version,
-platform, configuration, or environment, clearly mention that.
+@app.get("/")
+def home():
 
-Do not invent commands, APIs, configuration options, or features.
+    return {
+        "message": "Salesforce AI Assistant backend is running",
+        "status": "ok"
+    }
 
-Focus on solving the user's actual question.
-""",
+
+# ============================================================
+# Normal Text Chat
+# ============================================================
+
+@app.post("/chat")
+def chat(
+    data: dict,
+    authorization: str | None = Header(
+        default=None
+    )
+):
+
+    uid = verify_user(
+        authorization
+    )
+
+    print(
+        f"Authenticated Firebase user: {uid}"
+    )
+
+    question = data.get(
+        "question",
+        ""
+    )
+
+    if not question.strip():
+
+        return {
+            "answer": "Please enter a question.",
+            "illustration": None
+        }
+
+    try:
+
+        response = client.responses.create(
+
+            model="gpt-5.6-luna",
+
+            instructions=AI_INSTRUCTIONS,
 
             input=question,
         )
 
         answer = response.output_text
 
-        # --------------------------------------------------
-        # Generate Relevant Educational Illustration
-        # --------------------------------------------------
-
-        illustration_prompt = f"""
-Create a professional educational illustration that visually
-explains the topic in the following user question:
-
-{question}
-
-Create a conceptual technical or educational diagram,
-not a screenshot of a real application.
-
-Identify the main concepts from the question and represent
-them visually in a clean and understandable way.
-
-If the topic is programming, show relevant programming concepts,
-code flow, architecture, or logic.
-
-If the topic is Salesforce, show relevant Salesforce concepts
-such as objects, fields, Flow, automation, permissions,
-Apex, LWC, or integrations when applicable.
-
-If the topic is testing, show testing flow, test automation,
-test cases, APIs, browsers, or relevant testing concepts.
-
-If the topic is business, show the relevant business process,
-workflow, systems, or decision flow.
-
-If the topic is another technology, create an appropriate
-educational technical diagram for that technology.
-
-Use a clean enterprise software-training illustration style.
-
-Do not use copyrighted application screenshots.
-
-Do not pretend the image is an actual product screenshot.
-
-Do not use Salesforce logos.
-
-The illustration should be useful for technical learning
-and documentation.
-"""
-
-        illustration = generate_illustration(
-            illustration_prompt
-        )
-
         return {
             "answer": answer,
-            "illustration": illustration
+            "illustration": None
         }
 
     except Exception as error:
@@ -653,8 +512,226 @@ and documentation.
             error
         )
 
+        raise HTTPException(
+            status_code=500,
+            detail="The AI assistant encountered an error."
+        )
+
+
+# ============================================================
+# Uploaded Image / File Chat
+# ============================================================
+
+@app.post("/chat-upload")
+async def chat_upload(
+    question: str = Form(default=""),
+    file: UploadFile = File(...),
+    authorization: str | None = Header(
+        default=None
+    )
+):
+
+    uid = verify_user(
+        authorization
+    )
+
+    print(
+        f"Authenticated Firebase user: {uid}"
+    )
+
+    if not file:
+        raise HTTPException(
+            status_code=400,
+            detail="No file uploaded."
+        )
+
+    filename = file.filename or "uploaded-file"
+
+    content_type = (
+        file.content_type
+        or mimetypes.guess_type(filename)[0]
+        or "application/octet-stream"
+    )
+
+    file_bytes = await file.read()
+
+    if not file_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty."
+        )
+
+    print(
+        f"Uploaded file: {filename} | "
+        f"type={content_type} | "
+        f"size={len(file_bytes)} bytes"
+    )
+
+    try:
+
+        user_question = question.strip()
+
+        if not user_question:
+
+            user_question = (
+                "Please analyze this uploaded file and "
+                "explain the important information in it."
+            )
+
+        # ----------------------------------------------------
+        # IMAGE
+        # ----------------------------------------------------
+
+        if content_type.startswith("image/"):
+
+            encoded_image = base64.b64encode(
+                file_bytes
+            ).decode("utf-8")
+
+            image_data_url = (
+                f"data:{content_type};base64,"
+                f"{encoded_image}"
+            )
+
+            response = client.responses.create(
+
+                model="gpt-5.6-luna",
+
+                instructions=AI_INSTRUCTIONS,
+
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": user_question
+                            },
+                            {
+                                "type": "input_image",
+                                "image_url": image_data_url,
+                                "detail": "auto"
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            answer = response.output_text
+
+            return {
+                "answer": answer,
+                "filename": filename,
+                "file_type": content_type,
+                "illustration": None
+            }
+
+        # ----------------------------------------------------
+        # DOCUMENT / PDF / TEXT FILE
+        # ----------------------------------------------------
+
+        if (
+            content_type == "application/pdf"
+            or content_type.startswith("text/")
+            or content_type
+            in [
+                "application/json",
+                "application/xml",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.ms-powerpoint",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ]
+        ):
+
+            encoded_file = base64.b64encode(
+                file_bytes
+            ).decode("utf-8")
+
+            file_data = (
+                f"data:{content_type};base64,"
+                f"{encoded_file}"
+            )
+
+            response = client.responses.create(
+
+                model="gpt-5.6-luna",
+
+                instructions=AI_INSTRUCTIONS,
+
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": user_question
+                            },
+                            {
+                                "type": "input_file",
+                                "filename": filename,
+                                "file_data": file_data
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            answer = response.output_text
+
+            return {
+                "answer": answer,
+                "filename": filename,
+                "file_type": content_type,
+                "illustration": None
+            }
+
+        # ----------------------------------------------------
+        # VIDEO
+        # ----------------------------------------------------
+
+        if content_type.startswith("video/"):
+
+            return {
+                "answer": (
+                    "The video was received successfully, but "
+                    "video frame analysis is not enabled yet. "
+                    "The next backend update will extract video "
+                    "frames and send them to the AI for analysis."
+                ),
+                "filename": filename,
+                "file_type": content_type,
+                "illustration": None
+            }
+
+        # ----------------------------------------------------
+        # UNSUPPORTED FILE
+        # ----------------------------------------------------
+
         return {
-            "answer":
-            "The AI assistant encountered an error while processing your question.",
+            "answer": (
+                f"The file '{filename}' was uploaded successfully, "
+                f"but this file type ({content_type}) is not "
+                f"supported for AI analysis yet."
+            ),
+            "filename": filename,
+            "file_type": content_type,
             "illustration": None
         }
+
+    except Exception as error:
+
+        print(
+            "Upload analysis error:",
+            error
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The AI assistant could not analyze "
+                "the uploaded file."
+            )
+        )
