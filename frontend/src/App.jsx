@@ -58,6 +58,8 @@ function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
@@ -600,7 +602,11 @@ function App() {
 
               <button
                 type="button"
-                onClick={() => handleForgotPassword(email)}
+                onClick={() => {
+                  setResetEmail(email);
+                  setShowForgotPassword(true);
+                  setMessage("");
+                }}
                 style={styles.forgotButton}
               >
                 Forgot password?
@@ -644,6 +650,41 @@ function App() {
                 Create Account
               </button>
             </>
+          )}
+
+          {showForgotPassword && (
+            <div style={styles.resetOverlay}>
+              <div style={styles.resetCard}>
+                <h2 style={styles.resetTitle}>Reset your password</h2>
+                <p style={styles.resetSubtitle}>
+                  Enter your email address and we will send you a password reset link.
+                </p>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  style={styles.authInput}
+                />
+                <button
+                  type="button"
+                  style={styles.authPrimaryButton}
+                  onClick={async () => {
+                    await handleForgotPassword(resetEmail);
+                    setShowForgotPassword(false);
+                  }}
+                >
+                  Send Reset Link
+                </button>
+                <button
+                  type="button"
+                  style={styles.resetCancelButton}
+                  onClick={() => setShowForgotPassword(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
 
           <div style={styles.authDivider}>
@@ -1441,6 +1482,49 @@ const styles = {
     appearance: "none",
   },
 
+  resetOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15, 23, 42, 0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px",
+    zIndex: 1000,
+  },
+  resetCard: {
+    width: "100%",
+    maxWidth: "420px",
+    boxSizing: "border-box",
+    background: "#ffffff",
+    borderRadius: "18px",
+    padding: "28px",
+    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.2)",
+  },
+  resetTitle: {
+    margin: "0 0 8px",
+    color: "#0f172a",
+    fontSize: "22px",
+    fontWeight: "700",
+  },
+  resetSubtitle: {
+    margin: "0 0 20px",
+    color: "#64748b",
+    fontSize: "14px",
+    lineHeight: "1.5",
+  },
+  resetCancelButton: {
+    width: "100%",
+    border: "1px solid #cbd5e1",
+    borderRadius: "10px",
+    padding: "13px 20px",
+    marginTop: "10px",
+    background: "#ffffff",
+    color: "#475569",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
   authDivider: {
     display: "flex",
     alignItems: "center",
