@@ -534,6 +534,18 @@ function App() {
             AI Assistant for Technology & Salesforce
           </p>
 
+          <img
+            src={salesforceRobot}
+            alt="Salesforce AI Assistant"
+            style={{ width: "220px", maxWidth: "80%", height: "auto", display: "block", margin: "0 auto 20px" }}
+          />
+
+          <img
+            src={salesforceRobot}
+            alt="Salesforce AI Assistant"
+            style={{ width: "220px", maxWidth: "80%", height: "auto", display: "block", margin: "0 auto 20px" }}
+          />
+
           <div style={styles.authTabs}>
             <button
               type="button"
