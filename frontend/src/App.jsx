@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   createUserWithEmailAndPassword,
@@ -22,50 +22,38 @@ function App() {
   ========================= */
 
   const [user, setUser] = useState(null);
-
   const [mode, setMode] = useState("signin");
-
   const [email, setEmail] = useState("");
-
   const [password, setPassword] = useState("");
-
   const [question, setQuestion] = useState("");
-
   const [answer, setAnswer] = useState("");
+  const [illustration, setIllustration] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const [illustration, setIllustration] =
-    useState(null);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallButton, setShowInstallButton] = useState(true);
+  const [showPro, setShowPro] = useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  /* =========================
+     UPLOAD STATE
+  ========================= */
 
-  const [authLoading, setAuthLoading] =
-    useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
-  const [message, setMessage] =
-    useState("");
-
-  const [installPrompt, setInstallPrompt] =
-    useState(null);
-
-  const [showInstallButton, setShowInstallButton] =
-    useState(true);
-
-  const [showPro, setShowPro] =
-    useState(false);
+  const imageInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   /* =========================
      FIREBASE AUTH STATE
   ========================= */
 
   useEffect(() => {
-    const unsubscribe =
-      onAuthStateChanged(
-        auth,
-        (currentUser) => {
-          setUser(currentUser);
-        }
-      );
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
 
     return () => unsubscribe();
   }, []);
@@ -75,8 +63,7 @@ function App() {
   ========================= */
 
   useEffect(() => {
-    const style =
-      document.createElement("style");
+    const style = document.createElement("style");
 
     style.innerHTML = `
       input::placeholder,
@@ -94,6 +81,18 @@ function App() {
         .desktop-only {
           display: none !important;
         }
+
+        .header-email {
+          display: none !important;
+        }
+
+        .upload-row {
+          flex-direction: column;
+        }
+
+        .upload-button {
+          width: 100%;
+        }
       }
     `;
 
@@ -109,14 +108,11 @@ function App() {
   ========================= */
 
   useEffect(() => {
-    const handleBeforeInstallPrompt =
-      (event) => {
-        event.preventDefault();
-
-        setInstallPrompt(event);
-
-        setShowInstallButton(true);
-      };
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+      setShowInstallButton(true);
+    };
 
     window.addEventListener(
       "beforeinstallprompt",
@@ -147,26 +143,18 @@ function App() {
     try {
       await installPrompt.prompt();
 
-      const result =
-        await installPrompt.userChoice;
+      const result = await installPrompt.userChoice;
 
-      if (
-        result &&
-        result.outcome === "accepted"
-      ) {
+      if (result && result.outcome === "accepted") {
         setMessage(
           "Salesforce AI Assistant installed successfully."
         );
       }
 
       setInstallPrompt(null);
-
       setShowInstallButton(false);
     } catch (error) {
-      console.error(
-        "PWA installation error:",
-        error
-      );
+      console.error("PWA installation error:", error);
     }
   };
 
@@ -174,24 +162,15 @@ function App() {
      EMAIL SIGN IN / SIGN UP
   ========================= */
 
-  const handleEmailAuth = async (
-    event
-  ) => {
+  const handleEmailAuth = async (event) => {
     event.preventDefault();
 
-    if (
-      !email.trim() ||
-      !password.trim()
-    ) {
-      setMessage(
-        "Please enter your email and password."
-      );
-
+    if (!email.trim() || !password.trim()) {
+      setMessage("Please enter your email and password.");
       return;
     }
 
     setAuthLoading(true);
-
     setMessage("");
 
     try {
@@ -202,9 +181,7 @@ function App() {
           password
         );
 
-        setMessage(
-          "Account created successfully."
-        );
+        setMessage("Account created successfully.");
       } else {
         await signInWithEmailAndPassword(
           auth,
@@ -212,53 +189,25 @@ function App() {
           password
         );
 
-        setMessage(
-          "Signed in successfully."
-        );
+        setMessage("Signed in successfully.");
       }
     } catch (error) {
-      console.error(
-        "Authentication error:",
-        error
-      );
+      console.error("Authentication error:", error);
 
-      if (
-        error.code ===
-        "auth/email-already-in-use"
-      ) {
-        setMessage(
-          "This email is already registered."
-        );
+      if (error.code === "auth/email-already-in-use") {
+        setMessage("This email is already registered.");
+      } else if (error.code === "auth/invalid-email") {
+        setMessage("Please enter a valid email address.");
+      } else if (error.code === "auth/weak-password") {
+        setMessage("Password must be at least 6 characters.");
       } else if (
-        error.code ===
-        "auth/invalid-email"
+        error.code === "auth/invalid-credential" ||
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/user-not-found"
       ) {
-        setMessage(
-          "Please enter a valid email address."
-        );
-      } else if (
-        error.code ===
-        "auth/weak-password"
-      ) {
-        setMessage(
-          "Password must be at least 6 characters."
-        );
-      } else if (
-        error.code ===
-          "auth/invalid-credential" ||
-        error.code ===
-          "auth/wrong-password" ||
-        error.code ===
-          "auth/user-not-found"
-      ) {
-        setMessage(
-          "Invalid email or password."
-        );
+        setMessage("Invalid email or password.");
       } else {
-        setMessage(
-          error.message ||
-            "Authentication failed."
-        );
+        setMessage(error.message || "Authentication failed.");
       }
     } finally {
       setAuthLoading(false);
@@ -269,131 +218,121 @@ function App() {
      GOOGLE SIGN IN
   ========================= */
 
-  const handleGoogleLogin =
-    async () => {
-      setAuthLoading(true);
+  const handleGoogleLogin = async () => {
+    setAuthLoading(true);
+    setMessage("");
 
-      setMessage("");
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error("Google sign-in error:", error);
 
-      try {
-        await signInWithPopup(
-          auth,
-          googleProvider
-        );
-      } catch (error) {
-        console.error(
-          "Google sign-in error:",
-          error
-        );
-
-        setMessage(
-          error.message ||
-            "Google sign-in failed."
-        );
-      } finally {
-        setAuthLoading(false);
-      }
-    };
+      setMessage(
+        error.message || "Google sign-in failed."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   /* =========================
      FORGOT PASSWORD
   ========================= */
 
-  const handleForgotPassword =
-    async () => {
-      if (!email.trim()) {
-        setMessage(
-          "Enter your email address first."
-        );
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setMessage("Enter your email address first.");
+      return;
+    }
 
-        return;
-      }
+    setAuthLoading(true);
+    setMessage("");
 
-      setAuthLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
 
-      setMessage("");
+      setMessage(
+        "Password reset email sent. Please check your inbox."
+      );
+    } catch (error) {
+      console.error("Password reset error:", error);
 
-      try {
-        await sendPasswordResetEmail(
-          auth,
-          email.trim()
-        );
-
-        setMessage(
-          "Password reset email sent. Please check your inbox."
-        );
-      } catch (error) {
-        console.error(
-          "Password reset error:",
-          error
-        );
-
-        setMessage(
-          error.message ||
-            "Unable to send password reset email."
-        );
-      } finally {
-        setAuthLoading(false);
-      }
-    };
+      setMessage(
+        error.message ||
+          "Unable to send password reset email."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   /* =========================
      SIGN OUT
   ========================= */
 
-  const handleSignOut =
-    async () => {
-      try {
-        await signOut(auth);
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
 
-        setQuestion("");
-
-        setAnswer("");
-
-        setIllustration(null);
-
-        setMessage("");
-
-        setShowPro(false);
-      } catch (error) {
-        console.error(
-          "Sign out error:",
-          error
-        );
-      }
-    };
+      setQuestion("");
+      setAnswer("");
+      setIllustration(null);
+      setSelectedFiles([]);
+      setMessage("");
+      setShowPro(false);
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
 
   /* =========================
      PRO UPGRADE
   ========================= */
 
-  const handleUpgrade =
-    async () => {
-      /*
-       * Razorpay will be connected here.
-       *
-       * IMPORTANT:
-       * Razorpay secret credentials must
-       * stay on the Render backend.
-       */
+  const handleUpgrade = async () => {
+    setMessage(
+      "Pro payment is ready for Razorpay integration. The secure Razorpay subscription backend still needs to be connected."
+    );
 
-      setMessage(
-        "Pro payment is ready for Razorpay integration. The secure Razorpay subscription backend still needs to be connected."
-      );
+    setShowPro(true);
+  };
 
-      setShowPro(true);
-    };
+  /* =========================
+     FILE UPLOAD
+  ========================= */
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    setSelectedFiles(files);
+    setMessage(
+      `${files.length} file${files.length > 1 ? "s" : ""} selected.`
+    );
+
+    event.target.value = "";
+  };
+
+  const removeSelectedFile = (index) => {
+    setSelectedFiles((currentFiles) =>
+      currentFiles.filter((_, fileIndex) => fileIndex !== index)
+    );
+  };
+
+  const clearSelectedFiles = () => {
+    setSelectedFiles([]);
+  };
 
   /* =========================
      ASK AI
   ========================= */
 
   const askQuestion = async () => {
-    if (!question.trim()) {
-      setAnswer(
-        "Please enter a question."
-      );
-
+    if (!question.trim() && selectedFiles.length === 0) {
+      setAnswer("Please enter a question or upload a file.");
       return;
     }
 
@@ -401,51 +340,51 @@ function App() {
       setAnswer(
         "Please sign in before asking a question."
       );
+      return;
+    }
 
+    /*
+     * Current backend accepts text JSON only.
+     *
+     * File processing will be connected to the backend
+     * in the next step.
+     */
+
+    if (selectedFiles.length > 0) {
+      setAnswer(
+        "Your file has been selected successfully. Upload analysis will be connected to the AI backend next."
+      );
       return;
     }
 
     setLoading(true);
-
     setAnswer("");
-
     setIllustration(null);
 
     try {
-      const token =
-        await user.getIdToken(true);
+      const token = await user.getIdToken(true);
 
-      const response =
-        await fetch(
-          `${BACKEND_URL}/chat`,
-          {
-            method: "POST",
+      const response = await fetch(
+        `${BACKEND_URL}/chat`,
+        {
+          method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
 
-              Authorization:
-                `Bearer ${token}`,
-            },
+          body: JSON.stringify({
+            question: question.trim(),
+          }),
+        }
+      );
 
-            body: JSON.stringify({
-              question:
-                question.trim(),
-            }),
-          }
-        );
-
-      const data =
-        await response
-          .json()
-          .catch(() => null);
+      const data = await response
+        .json()
+        .catch(() => null);
 
       if (!response.ok) {
-        /*
-         * FREE LIMIT REACHED
-         */
-
         if (
           response.status === 403 &&
           data?.upgrade_required
@@ -455,17 +394,10 @@ function App() {
           );
 
           setShowPro(true);
-
           return;
         }
 
-        /*
-         * AUTH ERROR
-         */
-
-        if (
-          response.status === 401
-        ) {
+        if (response.status === 401) {
           setAnswer(
             "Your login session has expired. Please sign out and sign in again."
           );
@@ -480,19 +412,14 @@ function App() {
       }
 
       setAnswer(
-        data?.answer ||
-          "No answer received."
+        data?.answer || "No answer received."
       );
 
       setIllustration(
-        data?.illustration ||
-          null
+        data?.illustration || null
       );
     } catch (error) {
-      console.error(
-        "Chat error:",
-        error
-      );
+      console.error("Chat error:", error);
 
       setAnswer(
         "Unable to connect to the AI backend. Please try again."
@@ -506,15 +433,12 @@ function App() {
      ENTER KEY
   ========================= */
 
-  const handleKeyDown = (
-    event
-  ) => {
+  const handleKeyDown = (event) => {
     if (
       event.key === "Enter" &&
       !event.shiftKey
     ) {
       event.preventDefault();
-
       askQuestion();
     }
   };
@@ -538,63 +462,42 @@ function App() {
 
   if (!user) {
     return (
-      <div
-        style={styles.loginPage}
-      >
-        <div
-          style={styles.loginCard}
-        >
-          {/* ROBOT */}
-
+      <div style={styles.loginPage}>
+        <div style={styles.loginCard}>
           <img
             src={robotImage}
             alt="Salesforce AI Assistant"
             style={styles.loginRobot}
           />
 
-          <h1
-            style={styles.loginTitle}
-          >
+          <h1 style={styles.loginTitle}>
             Salesforce AI Assistant
           </h1>
 
-          <p
-            style={styles.loginSubtitle}
-          >
+          <p style={styles.loginSubtitle}>
             Ask anything in any language.
           </p>
-
-          {/* INSTALL */}
 
           {showInstallButton && (
             <button
               type="button"
               onClick={installApp}
-              style={
-                styles.installButton
-              }
+              style={styles.installButton}
             >
               📲 Install App
             </button>
           )}
 
-          {/* TABS */}
-
-          <div
-            style={styles.tabs}
-          >
+          <div style={styles.tabs}>
             <button
               type="button"
               onClick={() => {
                 setMode("signin");
-
                 setMessage("");
               }}
               style={{
                 ...styles.tab,
-
-                ...(mode ===
-                "signin"
+                ...(mode === "signin"
                   ? styles.activeTab
                   : {}),
               }}
@@ -606,14 +509,11 @@ function App() {
               type="button"
               onClick={() => {
                 setMode("signup");
-
                 setMessage("");
               }}
               style={{
                 ...styles.tab,
-
-                ...(mode ===
-                "signup"
+                ...(mode === "signup"
                   ? styles.activeTab
                   : {}),
               }}
@@ -622,20 +522,12 @@ function App() {
             </button>
           </div>
 
-          {/* FORM */}
-
-          <form
-            onSubmit={
-              handleEmailAuth
-            }
-          >
+          <form onSubmit={handleEmailAuth}>
             <input
               type="email"
               value={email}
               onChange={(event) =>
-                setEmail(
-                  event.target.value
-                )
+                setEmail(event.target.value)
               }
               placeholder="Email address"
               style={styles.input}
@@ -646,9 +538,7 @@ function App() {
               type="password"
               value={password}
               onChange={(event) =>
-                setPassword(
-                  event.target.value
-                )
+                setPassword(event.target.value)
               }
               placeholder="Password"
               style={styles.input}
@@ -662,9 +552,7 @@ function App() {
             <button
               type="submit"
               disabled={authLoading}
-              style={
-                styles.continueButton
-              }
+              style={styles.continueButton}
             >
               {authLoading
                 ? "Please wait..."
@@ -674,59 +562,33 @@ function App() {
             </button>
           </form>
 
-          {/* FORGOT PASSWORD */}
-
           {mode === "signin" && (
             <button
               type="button"
-              onClick={
-                handleForgotPassword
-              }
-              style={
-                styles.forgotButton
-              }
+              onClick={handleForgotPassword}
+              style={styles.forgotButton}
             >
               Forgot password?
             </button>
           )}
 
-          {/* OR */}
+          <div style={styles.orContainer}>
+            <div style={styles.line} />
 
-          <div
-            style={
-              styles.orContainer
-            }
-          >
-            <div
-              style={styles.line}
-            />
-
-            <span
-              style={styles.orText}
-            >
+            <span style={styles.orText}>
               OR
             </span>
 
-            <div
-              style={styles.line}
-            />
+            <div style={styles.line} />
           </div>
-
-          {/* GOOGLE */}
 
           <button
             type="button"
-            onClick={
-              handleGoogleLogin
-            }
+            onClick={handleGoogleLogin}
             disabled={authLoading}
-            style={
-              styles.googleButton
-            }
+            style={styles.googleButton}
           >
-            <span
-              style={styles.googleG}
-            >
+            <span style={styles.googleG}>
               G
             </span>
 
@@ -735,34 +597,19 @@ function App() {
             </span>
           </button>
 
-          {/* MESSAGE */}
-
           {message && (
-            <div
-              style={styles.message}
-            >
+            <div style={styles.message}>
               {message}
             </div>
           )}
 
-          {/* TERMS */}
-
-          <p
-            style={styles.terms}
-          >
-            By continuing, you agree
-            to our{" "}
-            <a
-              href="#"
-              style={styles.link}
-            >
+          <p style={styles.terms}>
+            By continuing, you agree to our{" "}
+            <a href="#" style={styles.link}>
               Terms
             </a>{" "}
             and{" "}
-            <a
-              href="#"
-              style={styles.link}
-            >
+            <a href="#" style={styles.link}>
               Privacy Policy
             </a>
             .
@@ -778,95 +625,58 @@ function App() {
 
   return (
     <div style={styles.app}>
-
       {/* HEADER */}
 
-      <header
-        style={styles.header}
-      >
-        <div
-          style={styles.headerLeft}
-        >
+      <header style={styles.header}>
+        <div style={styles.headerLeft}>
           <img
             src={robotImage}
             alt="AI Assistant"
-            style={
-              styles.headerRobot
-            }
+            style={styles.headerRobot}
           />
 
           <div>
-            <h1
-              style={
-                styles.headerTitle
-              }
-            >
+            <h1 style={styles.headerTitle}>
               Salesforce AI Assistant
             </h1>
 
-            <p
-              style={
-                styles.headerSubtitle
-              }
-            >
-              Ask anything in any
-              language.
+            <p style={styles.headerSubtitle}>
+              Ask anything in any language.
             </p>
           </div>
         </div>
 
-        <div
-          style={
-            styles.headerRight
-          }
-        >
-          {/* INSTALL */}
-
+        <div style={styles.headerRight}>
           {showInstallButton && (
             <button
               type="button"
-              onClick={
-                installApp
-              }
-              style={
-                styles.installHeaderButton
-              }
+              onClick={installApp}
+              style={styles.installHeaderButton}
             >
               📲 Install App
             </button>
           )}
 
-          {/* PRO */}
-
           <button
             type="button"
             onClick={() =>
-              setShowPro(
-                !showPro
-              )
+              setShowPro(!showPro)
             }
-            style={
-              styles.proHeaderButton
-            }
+            style={styles.proHeaderButton}
           >
             ⭐ Pro ₹100/month
           </button>
 
-          {/* EMAIL */}
-
           <span
             style={styles.email}
+            className="header-email"
           >
             {user.email}
           </span>
 
-          {/* SIGN OUT */}
-
           <button
             type="button"
-            onClick={
-              handleSignOut
-            }
+            onClick={handleSignOut}
             style={styles.signOut}
           >
             Sign Out
@@ -877,45 +687,28 @@ function App() {
       {/* PRO PANEL */}
 
       {showPro && (
-        <section
-          style={
-            styles.proSection
-          }
-        >
-          <div
-            style={styles.proCard}
-          >
-            <div
-              style={styles.proIcon}
-            >
+        <section style={styles.proSection}>
+          <div style={styles.proCard}>
+            <div style={styles.proIcon}>
               ⭐
             </div>
 
-            <div
-              style={styles.proContent}
-            >
-              <h2
-                style={styles.proTitle}
-              >
+            <div style={styles.proContent}>
+              <h2 style={styles.proTitle}>
                 Upgrade to Pro
               </h2>
 
-              <p
-                style={styles.proPrice}
-              >
+              <p style={styles.proPrice}>
                 ₹100 / month
               </p>
 
-              <ul
-                style={styles.proList}
-              >
+              <ul style={styles.proList}>
                 <li>
                   More AI questions
                 </li>
 
                 <li>
-                  Advanced Salesforce
-                  assistance
+                  Advanced Salesforce assistance
                 </li>
 
                 <li>
@@ -929,23 +722,14 @@ function App() {
 
               <button
                 type="button"
-                onClick={
-                  handleUpgrade
-                }
-                style={
-                  styles.upgradeButton
-                }
+                onClick={handleUpgrade}
+                style={styles.upgradeButton}
               >
                 💳 Upgrade to Pro
               </button>
 
-              <p
-                style={
-                  styles.paymentNote
-                }
-              >
-                Secure payment through
-                Razorpay.
+              <p style={styles.paymentNote}>
+                Secure payment through Razorpay.
               </p>
             </div>
           </div>
@@ -954,80 +738,177 @@ function App() {
 
       {/* MAIN */}
 
-      <main
-        style={styles.main}
-      >
+      <main style={styles.main}>
         {/* HERO */}
 
-        <section
-          style={styles.hero}
-        >
+        <section style={styles.hero}>
           <img
             src={robotImage}
             alt="Salesforce AI Assistant"
-            style={
-              styles.mainRobot
-            }
+            style={styles.mainRobot}
           />
 
-          <h2
-            style={styles.heroTitle}
-          >
+          <h2 style={styles.heroTitle}>
             How can I help you today?
           </h2>
 
-          <p
-            style={
-              styles.heroDescription
-            }
-          >
-           
-            Ask questions about any technology like Salesforce,
-            ServiceNow, SAP, Python, Java and more.
+          <p style={styles.heroDescription}>
+            Ask questions about any technology like
+            Salesforce, ServiceNow, SAP, Python,
+            Java and more — in English, Telugu,
+            Hindi and other languages.
+          </p>
+
+          <p style={styles.uploadDescription}>
+            Type a question or upload an image,
+            file or video and ask about it.
           </p>
         </section>
 
         {/* QUESTION BOX */}
-        <section
-          style={
-            styles.questionCard
-          }
-        >
+
+        <section style={styles.questionCard}>
           <textarea
             value={question}
             onChange={(event) =>
-              setQuestion(
-                event.target.value
-              )
+              setQuestion(event.target.value)
             }
-            onKeyDown={
-              handleKeyDown
-            }
-            placeholder="Ask your Salesforce question..."
+            onKeyDown={handleKeyDown}
+            placeholder="Ask your technology question..."
             rows={5}
             style={styles.textarea}
           />
 
+          {/* UPLOAD BUTTONS */}
+
           <div
-            style={
-              styles.questionFooter
-            }
+            className="upload-row"
+            style={styles.uploadRow}
           >
-            <span
-              style={styles.hint}
+            <button
+              type="button"
+              className="upload-button"
+              style={styles.uploadButton}
+              onClick={() =>
+                imageInputRef.current?.click()
+              }
             >
+              📷 Image
+            </button>
+
+            <button
+              type="button"
+              className="upload-button"
+              style={styles.uploadButton}
+              onClick={() =>
+                fileInputRef.current?.click()
+              }
+            >
+              📎 File
+            </button>
+
+            <button
+              type="button"
+              className="upload-button"
+              style={styles.uploadButton}
+              onClick={() =>
+                videoInputRef.current?.click()
+              }
+            >
+              🎥 Video
+            </button>
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={styles.hiddenInput}
+              onChange={handleFileSelect}
+            />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
+              multiple
+              style={styles.hiddenInput}
+              onChange={handleFileSelect}
+            />
+
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              multiple
+              style={styles.hiddenInput}
+              onChange={handleFileSelect}
+            />
+          </div>
+
+          {/* SELECTED FILES */}
+
+          {selectedFiles.length > 0 && (
+            <div style={styles.selectedFilesBox}>
+              <div style={styles.selectedFilesHeader}>
+                <strong>
+                  Selected files
+                </strong>
+
+                <button
+                  type="button"
+                  onClick={clearSelectedFiles}
+                  style={styles.clearFilesButton}
+                >
+                  Clear all
+                </button>
+              </div>
+
+              {selectedFiles.map(
+                (file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    style={styles.selectedFile}
+                  >
+                    <span style={styles.fileName}>
+                      📎 {file.name}
+                    </span>
+
+                    <span style={styles.fileSize}>
+                      {(
+                        file.size /
+                        (1024 * 1024)
+                      ).toFixed(2)}{" "}
+                      MB
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeSelectedFile(index)
+                      }
+                      style={
+                        styles.removeFileButton
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          <div style={styles.questionFooter}>
+            <span style={styles.hint}>
               Press Enter to ask
             </span>
 
             <button
               type="button"
-              onClick={
-                askQuestion
-              }
+              onClick={askQuestion}
               disabled={loading}
-              style={
-                styles.askButton
-              }
+              style={styles.askButton}
             >
               {loading
                 ? "Thinking..."
@@ -1038,71 +919,38 @@ function App() {
 
         {/* QUICK QUESTIONS */}
 
-        <section
-          style={
-            styles.quickSection
-          }
-        >
-          <h3
-            style={
-              styles.quickTitle
-            }
-          >
+        <section style={styles.quickSection}>
+          <h3 style={styles.quickTitle}>
             Quick Questions
           </h3>
 
-          <div
-            style={
-              styles.quickGrid
-            }
-          >
-            {quickQuestions.map(
-              (item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => {
-                    setQuestion(
-                      item
-                    );
-
-                    setAnswer("");
-
-                    setIllustration(
-                      null
-                    );
-                  }}
-                  style={
-                    styles.quickButton
-                  }
-                >
-                  {item}
-                </button>
-              )
-            )}
+          <div style={styles.quickGrid}>
+            {quickQuestions.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setQuestion(item);
+                  setAnswer("");
+                  setIllustration(null);
+                }}
+                style={styles.quickButton}
+              >
+                {item}
+              </button>
+            ))}
           </div>
         </section>
 
         {/* LOADING */}
 
         {loading && (
-          <section
-            style={
-              styles.answerCard
-            }
-          >
-            <div
-              style={styles.loading}
-            >
-              <div
-                style={
-                  styles.spinner
-                }
-              />
+          <section style={styles.answerCard}>
+            <div style={styles.loading}>
+              <div style={styles.spinner} />
 
               <span>
-                Salesforce AI is
-                thinking...
+                Salesforce AI is thinking...
               </span>
             </div>
           </section>
@@ -1111,22 +959,12 @@ function App() {
         {/* ANSWER */}
 
         {!loading && answer && (
-          <section
-            style={
-              styles.answerCard
-            }
-          >
-            <h3
-              style={
-                styles.answerTitle
-              }
-            >
+          <section style={styles.answerCard}>
+            <h3 style={styles.answerTitle}>
               AI Response
             </h3>
 
-            <div
-              style={styles.answer}
-            >
+            <div style={styles.answer}>
               {answer}
             </div>
 
@@ -1134,9 +972,7 @@ function App() {
               <img
                 src={illustration}
                 alt="AI illustration"
-                style={
-                  styles.illustration
-                }
+                style={styles.illustration}
               />
             )}
           </section>
@@ -1145,16 +981,14 @@ function App() {
 
       {/* FOOTER */}
 
-      <footer
-        style={styles.footer}
-      >
+      <footer style={styles.footer}>
         <strong>
           Salesforce AI Assistant
         </strong>
 
         <div>
-          AI-powered Salesforce
-          learning assistant
+          AI-powered Salesforce learning
+          assistant
         </div>
       </footer>
     </div>
@@ -1565,6 +1399,14 @@ const styles = {
     lineHeight: "1.7",
   },
 
+  uploadDescription: {
+    maxWidth: "680px",
+    margin: "7px auto 0",
+    color: "#667085",
+    fontSize: "13px",
+    lineHeight: "1.6",
+  },
+
   /* QUESTION */
 
   questionCard: {
@@ -1591,6 +1433,93 @@ const styles = {
     color: "#101828",
     background: "#ffffff",
     outline: "none",
+  },
+
+  /* UPLOAD */
+
+  uploadRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "9px",
+    marginTop: "12px",
+    flexWrap: "wrap",
+  },
+
+  uploadButton: {
+    border: "2px solid #98a2b3",
+    borderRadius: "8px",
+    padding: "9px 15px",
+    background: "#ffffff",
+    color: "#172033",
+    cursor: "pointer",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  hiddenInput: {
+    display: "none",
+  },
+
+  selectedFilesBox: {
+    marginTop: "12px",
+    padding: "12px",
+    border: "1px solid #d0d5dd",
+    borderRadius: "9px",
+    background: "#f8fafc",
+  },
+
+  selectedFilesHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "8px",
+    color: "#172033",
+    fontSize: "13px",
+  },
+
+  clearFilesButton: {
+    border: "none",
+    background: "transparent",
+    color: "#b42318",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+
+  selectedFile: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 0",
+    borderTop: "1px solid #eaecf0",
+  },
+
+  fileName: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: "#172033",
+    fontSize: "12px",
+    fontWeight: "600",
+  },
+
+  fileSize: {
+    color: "#667085",
+    fontSize: "11px",
+    whiteSpace: "nowrap",
+  },
+
+  removeFileButton: {
+    border: "none",
+    background: "#fee4e2",
+    color: "#b42318",
+    borderRadius: "6px",
+    width: "26px",
+    height: "26px",
+    cursor: "pointer",
+    fontWeight: "800",
   },
 
   questionFooter: {
