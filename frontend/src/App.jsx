@@ -537,13 +537,13 @@ function App() {
           <img
             src={salesforceRobot}
             alt="Salesforce AI Assistant"
-            style={{ width: "220px", maxWidth: "80%", height: "auto", display: "block", margin: "0 auto 20px" }}
+            style={{ width: "100px", maxWidth: "60%", height: "auto", display: "block", margin: "0 auto 20px" }}
           />
 
           <img
             src={salesforceRobot}
             alt="Salesforce AI Assistant"
-            style={{ width: "220px", maxWidth: "80%", height: "auto", display: "block", margin: "0 auto 20px" }}
+            style={{ width: "100px", maxWidth: "60%", height: "auto", display: "block", margin: "0 auto 20px" }}
           />
 
           <div style={styles.authTabs}>
