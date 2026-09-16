@@ -1,62 +1,69 @@
 import { useEffect, useRef, useState } from "react";
-
+import { initializeApp } from "firebase/app";
 import {
-  createUserWithEmailAndPassword,
+  getAuth,
+  GoogleAuthProvider,
   onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
 
-import { auth, googleProvider } from "./firebase";
+// --------------------------------------------------
+// Firebase
+// --------------------------------------------------
 
-import robotImage from "./assets/salesforce-ai-robot.png";
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_EXISTING_FIREBASE_WEB_API_KEY",
+  authDomain: "salesforce-ai-assistant-98aad.firebaseapp.com",
+  projectId: "salesforce-ai-assistant-98aad",
+  storageBucket: "salesforce-ai-assistant-98aad.firebasestorage.app",
+  messagingSenderId: "2876872987",
+  appId: "PASTE_YOUR_EXISTING_FIREBASE_APP_ID",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
+
+// --------------------------------------------------
+// Backend
+// --------------------------------------------------
 
 const BACKEND_URL =
   "https://salesforce-ai-assistant-8gvo.onrender.com";
 
+// --------------------------------------------------
+// App
+// --------------------------------------------------
+
 function App() {
-  /* =========================
-     STATE
-  ========================= */
+  // ------------------------------------------------
+  // Authentication
+  // ------------------------------------------------
 
   const [user, setUser] = useState(null);
-  const [mode, setMode] = useState("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // ------------------------------------------------
+  // AI
+  // ------------------------------------------------
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [illustration, setIllustration] = useState(null);
-
   const [loading, setLoading] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  /* =========================
-     VOICE STATE
-  ========================= */
+  // ------------------------------------------------
+  // Voice
+  // ------------------------------------------------
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
-  /* =========================
-     PWA STATE
-  ========================= */
-
-  const [installPrompt, setInstallPrompt] = useState(null);
-  const [showInstallButton, setShowInstallButton] = useState(true);
-
-  /* =========================
-     PRO STATE
-  ========================= */
-
-  const [showPro, setShowPro] = useState(false);
-
-  /* =========================
-     UPLOAD STATE
-  ========================= */
+  // ------------------------------------------------
+  // File uploads
+  // ------------------------------------------------
 
   const [selectedFiles, setSelectedFiles] = useState([]);
 
@@ -64,69 +71,38 @@ function App() {
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
-  /* =========================
-     FIREBASE AUTH STATE
-  ========================= */
+  // ------------------------------------------------
+  // PWA install
+  // ------------------------------------------------
+
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallButton, setShowInstallButton] = useState(false);
+
+  // ------------------------------------------------
+  // Pro
+  // ------------------------------------------------
+
+  const [showPro, setShowPro] = useState(false);
+
+  // ------------------------------------------------
+  // Firebase authentication listener
+  // ------------------------------------------------
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
       (currentUser) => {
         setUser(currentUser);
+        setAuthLoading(false);
       }
     );
 
     return () => unsubscribe();
   }, []);
 
-  /* =========================
-     DARKER PLACEHOLDERS
-  ========================= */
-
-  useEffect(() => {
-    const style = document.createElement("style");
-
-    style.innerHTML = `
-      input::placeholder,
-      textarea::placeholder {
-        color: #667085 !important;
-        opacity: 1 !important;
-      }
-
-      button:disabled {
-        opacity: 0.65;
-        cursor: not-allowed;
-      }
-
-      @media (max-width: 700px) {
-        .desktop-only {
-          display: none !important;
-        }
-
-        .header-email {
-          display: none !important;
-        }
-
-        .upload-row {
-          flex-direction: column;
-        }
-
-        .upload-button {
-          width: 100%;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
-  /* =========================
-     PWA INSTALL
-  ========================= */
+  // ------------------------------------------------
+  // PWA install event
+  // ------------------------------------------------
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
@@ -149,400 +125,317 @@ function App() {
     };
   }, []);
 
-  /* =========================
-     INSTALL APP
-  ========================= */
+  // ------------------------------------------------
+  // Login
+  // ------------------------------------------------
 
-  const installApp = async () => {
+  const handleLogin = async () => {
+    try {
+      setMessage("");
+
+      await signInWithPopup(
+        auth,
+        googleProvider
+      );
+    } catch (error) {
+      console.error(error);
+
+      setMessage(
+        "Unable to sign in. Please try again."
+      );
+    }
+  };
+
+  // ------------------------------------------------
+  // Logout
+  // ------------------------------------------------
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+
+      setAnswer("");
+      setQuestion("");
+      setSelectedFiles([]);
+      setMessage("");
+    } catch (error) {
+      console.error(error);
+
+      setMessage("Unable to sign out.");
+    }
+  };
+
+  // ------------------------------------------------
+  // Install app
+  // ------------------------------------------------
+
+  const handleInstallApp = async () => {
     if (!installPrompt) {
       setMessage(
-        "The Install App option is not available in this browser right now. Please use the browser menu and choose Install App or Add to Home Screen."
+        "App installation is not available in this browser. Use your browser's Install App or Add to Home Screen option."
       );
 
       return;
     }
 
     try {
-      await installPrompt.prompt();
+      installPrompt.prompt();
 
-      const result = await installPrompt.userChoice;
+      const result =
+        await installPrompt.userChoice;
 
-      if (
-        result &&
-        result.outcome === "accepted"
-      ) {
+      if (result.outcome === "accepted") {
         setMessage(
-          "Salesforce AI Assistant installed successfully."
+          "App installation started."
+        );
+      } else {
+        setMessage(
+          "App installation was cancelled."
         );
       }
 
       setInstallPrompt(null);
       setShowInstallButton(false);
     } catch (error) {
-      console.error(
-        "PWA installation error:",
-        error
-      );
-    }
-  };
-
-  /* =========================
-     EMAIL SIGN IN / SIGN UP
-  ========================= */
-
-  const handleEmailAuth = async (event) => {
-    event.preventDefault();
-
-    if (!email.trim() || !password.trim()) {
-      setMessage(
-        "Please enter your email and password."
-      );
-      return;
-    }
-
-    setAuthLoading(true);
-    setMessage("");
-
-    try {
-      if (mode === "signup") {
-        await createUserWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password
-        );
-
-        setMessage(
-          "Account created successfully."
-        );
-      } else {
-        await signInWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password
-        );
-
-        setMessage(
-          "Signed in successfully."
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Authentication error:",
-        error
-      );
-
-      if (
-        error.code ===
-        "auth/email-already-in-use"
-      ) {
-        setMessage(
-          "This email is already registered."
-        );
-      } else if (
-        error.code === "auth/invalid-email"
-      ) {
-        setMessage(
-          "Please enter a valid email address."
-        );
-      } else if (
-        error.code === "auth/weak-password"
-      ) {
-        setMessage(
-          "Password must be at least 6 characters."
-        );
-      } else if (
-        error.code ===
-          "auth/invalid-credential" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/user-not-found"
-      ) {
-        setMessage(
-          "Invalid email or password."
-        );
-      } else {
-        setMessage(
-          error.message ||
-            "Authentication failed."
-        );
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  /* =========================
-     GOOGLE SIGN IN
-  ========================= */
-
-  const handleGoogleLogin = async () => {
-    setAuthLoading(true);
-    setMessage("");
-
-    try {
-      await signInWithPopup(
-        auth,
-        googleProvider
-      );
-    } catch (error) {
-      console.error(
-        "Google sign-in error:",
-        error
-      );
+      console.error(error);
 
       setMessage(
-        error.message ||
-          "Google sign-in failed."
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  /* =========================
-     FORGOT PASSWORD
-  ========================= */
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setMessage(
-        "Enter your email address first."
-      );
-      return;
-    }
-
-    setAuthLoading(true);
-    setMessage("");
-
-    try {
-      await sendPasswordResetEmail(
-        auth,
-        email.trim()
-      );
-
-      setMessage(
-        "Password reset email sent. Please check your inbox."
-      );
-    } catch (error) {
-      console.error(
-        "Password reset error:",
-        error
-      );
-
-      setMessage(
-        error.message ||
-          "Unable to send password reset email."
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  /* =========================
-     SIGN OUT
-  ========================= */
-
-  const handleSignOut = async () => {
-    try {
-      if (
-        recognitionRef.current
-      ) {
-        recognitionRef.current.stop();
-      }
-
-      await signOut(auth);
-
-      setQuestion("");
-      setAnswer("");
-      setIllustration(null);
-      setSelectedFiles([]);
-      setMessage("");
-      setShowPro(false);
-      setIsListening(false);
-    } catch (error) {
-      console.error(
-        "Sign out error:",
-        error
+        "Unable to install the app."
       );
     }
   };
 
-  /* =========================
-     PRO UPGRADE
-  ========================= */
-
-  const handleUpgrade = async () => {
-    setMessage(
-      "Pro payment is ready for Razorpay integration. The secure Razorpay subscription backend still needs to be connected."
-    );
-
-    setShowPro(true);
-  };
-
-  /* =========================
-     FILE UPLOAD
-  ========================= */
+  // ------------------------------------------------
+  // File selection
+  // ------------------------------------------------
 
   const handleFileSelect = (event) => {
     const files = Array.from(
       event.target.files || []
     );
 
-    if (files.length === 0) {
+    if (!files.length) {
       return;
     }
 
-    setSelectedFiles(files);
+    setSelectedFiles((previousFiles) => [
+      ...previousFiles,
+      ...files,
+    ]);
 
     setMessage(
       `${files.length} file${
         files.length > 1 ? "s" : ""
-      } selected.`
+      } selected successfully.`
     );
 
     event.target.value = "";
   };
 
+  // ------------------------------------------------
+  // Remove selected file
+  // ------------------------------------------------
+
   const removeSelectedFile = (index) => {
     setSelectedFiles(
-      (currentFiles) =>
-        currentFiles.filter(
+      (previousFiles) =>
+        previousFiles.filter(
           (_, fileIndex) =>
             fileIndex !== index
         )
     );
   };
 
+  // ------------------------------------------------
+  // Clear selected files
+  // ------------------------------------------------
+
   const clearSelectedFiles = () => {
     setSelectedFiles([]);
   };
 
-  /* =========================
-     ASK AI
-  ========================= */
+  // ------------------------------------------------
+  // Ask AI
+  // ------------------------------------------------
 
   const askQuestion = async (
-    questionOverride = null
+    voiceQuestion = null
   ) => {
-    const currentQuestion =
-      questionOverride !== null
-        ? questionOverride
-        : question;
+    const finalQuestion =
+      voiceQuestion !== null
+        ? voiceQuestion.trim()
+        : question.trim();
 
     if (
-      !currentQuestion.trim() &&
+      !finalQuestion &&
       selectedFiles.length === 0
     ) {
-      setAnswer(
-        "Please enter a question or upload a file."
+      setMessage(
+        "Please type a question, speak a question, or upload a file."
       );
+
       return;
     }
 
     if (!user) {
-      setAnswer(
-        "Please sign in before asking a question."
+      setMessage(
+        "Please sign in with Google before using the AI."
       );
-      return;
-    }
 
-    /*
-     * File processing will be connected
-     * to the backend separately.
-     */
-
-    if (selectedFiles.length > 0) {
-      setAnswer(
-        "Your file has been selected successfully. Upload analysis will be connected to the AI backend next."
-      );
       return;
     }
 
     setLoading(true);
+    setMessage("");
     setAnswer("");
     setIllustration(null);
 
     try {
       const token =
-        await user.getIdToken(true);
+        await user.getIdToken();
 
-      const response = await fetch(
-        `${BACKEND_URL}/chat`,
-        {
-          method: "POST",
+      // --------------------------------------------
+      // FILE / IMAGE / VIDEO UPLOAD
+      // --------------------------------------------
 
-          headers: {
-            "Content-Type":
-              "application/json",
+      if (selectedFiles.length > 0) {
+        const formData =
+          new FormData();
 
-            Authorization:
-              `Bearer ${token}`,
-          },
+        formData.append(
+          "question",
+          finalQuestion
+        );
 
-          body: JSON.stringify({
-            question:
-              currentQuestion.trim(),
-          }),
-        }
-      );
+        formData.append(
+          "file",
+          selectedFiles[0]
+        );
 
-      const data =
-        await response
-          .json()
-          .catch(() => null);
-
-      if (!response.ok) {
-        if (
-          response.status === 403 &&
-          data?.upgrade_required
-        ) {
-          setAnswer(
-            "🔒 You've used your 10 free questions for this month."
+        const response =
+          await fetch(
+            `${BACKEND_URL}/chat-upload`,
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+              body: formData,
+            }
           );
 
-          setShowPro(true);
-
-          return;
-        }
+        const data =
+          await response.json();
 
         if (response.status === 401) {
-          setAnswer(
-            "Your login session has expired. Please sign out and sign in again."
+          throw new Error(
+            "Authentication failed. Please sign in again."
           );
-
-          return;
         }
 
+        if (response.status === 403) {
+          throw new Error(
+            "You do not have permission to use this service."
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data?.detail ||
+              "Unable to process the uploaded file."
+          );
+        }
+
+        setAnswer(
+          data.answer ||
+            "No answer returned."
+        );
+
+        setIllustration(
+          data.illustration ||
+            null
+        );
+
+        setSelectedFiles([]);
+
+        return;
+      }
+
+      // --------------------------------------------
+      // NORMAL TEXT QUESTION
+      // --------------------------------------------
+
+      const response =
+        await fetch(
+          `${BACKEND_URL}/chat`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: JSON.stringify({
+              question:
+                finalQuestion,
+            }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (response.status === 401) {
+        throw new Error(
+          "Authentication failed. Please sign in again."
+        );
+      }
+
+      if (response.status === 403) {
+        throw new Error(
+          "You do not have permission to use this service."
+        );
+      }
+
+      if (!response.ok) {
         throw new Error(
           data?.detail ||
-            `Server error: ${response.status}`
+            "Unable to get an answer from the AI."
         );
       }
 
       setAnswer(
-        data?.answer ||
-          "No answer received."
+        data.answer ||
+          "No answer returned."
       );
 
       setIllustration(
-        data?.illustration || null
+        data.illustration ||
+          null
       );
     } catch (error) {
       console.error(
-        "Chat error:",
+        "AI request error:",
         error
       );
 
-      setAnswer(
-        "Unable to connect to the AI backend. Please try again."
+      setMessage(
+        error.message ||
+          "Unable to connect to the AI backend. Please try again."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  /* =========================
-     VOICE INPUT
-  ========================= */
+  // ------------------------------------------------
+  // Voice input
+  // ------------------------------------------------
 
   const startVoiceInput = () => {
     const SpeechRecognition =
@@ -551,17 +444,14 @@ function App() {
 
     if (!SpeechRecognition) {
       setMessage(
-        "Voice input is not supported in this browser. Please use Google Chrome."
+        "Voice input is not supported in this browser. Please use Chrome or another supported browser."
       );
 
       return;
     }
 
-    if (
-      isListening &&
-      recognitionRef.current
-    ) {
-      recognitionRef.current.stop();
+    if (isListening) {
+      recognitionRef.current?.stop();
 
       return;
     }
@@ -569,89 +459,67 @@ function App() {
     const recognition =
       new SpeechRecognition();
 
-    /*
-     * Change this to:
-     *
-     * te-IN = Telugu
-     * hi-IN = Hindi
-     * en-IN = English
-     *
-     * We can add a language selector later.
-     */
-
     recognition.lang = "en-IN";
-
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsListening(true);
-      setMessage(
-        "🎤 Listening... Please speak your question."
-      );
+      setMessage("Listening...");
     };
 
     recognition.onresult = async (
       event
     ) => {
       const transcript =
-        event.results[0][0].transcript.trim();
+        event.results?.[0]?.[0]?.transcript?.trim() ||
+        "";
 
       if (!transcript) {
         setMessage(
-          "I couldn't hear a question. Please try again."
+          "I could not hear your question."
         );
 
         return;
       }
 
       setQuestion(transcript);
+
       setMessage(
-        `🎤 You said: ${transcript}`
+        "Question received. Asking AI..."
       );
 
-      /*
-       * Automatically send the spoken question
-       * to the AI backend.
-       */
-
+      // Automatically submit voice question
       await askQuestion(transcript);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (
+      event
+    ) => {
       console.error(
         "Speech recognition error:",
-        event.error
+        event
       );
 
       setIsListening(false);
-      recognitionRef.current = null;
 
       if (
         event.error ===
         "not-allowed"
       ) {
         setMessage(
-          "Microphone permission was denied. Please allow microphone access in your browser."
-        );
-      } else if (
-        event.error ===
-        "no-speech"
-      ) {
-        setMessage(
-          "I didn't hear anything. Please tap Mic and speak again."
+          "Microphone permission was denied. Please allow microphone access."
         );
       } else {
         setMessage(
-          "Voice input failed. Please try again."
+          "Unable to recognize your voice. Please try again."
         );
       }
     };
 
     recognition.onend = () => {
       setIsListening(false);
-      recognitionRef.current = null;
     };
 
     recognitionRef.current =
@@ -660,441 +528,179 @@ function App() {
     try {
       recognition.start();
     } catch (error) {
-      console.error(
-        "Could not start microphone:",
-        error
-      );
+      console.error(error);
 
       setIsListening(false);
-      recognitionRef.current = null;
 
       setMessage(
-        "Unable to start the microphone. Please try again."
+        "Unable to start microphone."
       );
     }
   };
 
-  /* =========================
-     ENTER KEY
-  ========================= */
-
-  const handleKeyDown = (event) => {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
-      event.preventDefault();
-
-      askQuestion();
-    }
-  };
-
-  /* =========================
-     QUICK QUESTIONS
-  ========================= */
+  // ------------------------------------------------
+  // Quick questions
+  // ------------------------------------------------
 
   const quickQuestions = [
     "What is Salesforce Flow?",
-    "Explain Salesforce OWD",
-    "What is an Apex trigger?",
-    "What is LWC?",
-    "What is Salesforce CPQ?",
-    "What is a Permission Set?",
+    "Explain Salesforce Admin concepts.",
+    "What is ServiceNow?",
+    "Explain Apex in Salesforce.",
+    "What is Python?",
+    "What is Java?",
   ];
 
-  /* =========================
-     LOGIN SCREEN
-  ========================= */
+  const handleQuickQuestion = (
+    item
+  ) => {
+    setQuestion(item);
+    setAnswer("");
+    setMessage("");
 
-  if (!user) {
+    setTimeout(() => {
+      askQuestion(item);
+    }, 50);
+  };
+
+  // ------------------------------------------------
+  // Pro
+  // ------------------------------------------------
+
+  const openPro = () => {
+    setShowPro(true);
+  };
+
+  const closePro = () => {
+    setShowPro(false);
+  };
+
+  // ------------------------------------------------
+  // Loading screen
+  // ------------------------------------------------
+
+  if (authLoading) {
     return (
-      <div style={styles.loginPage}>
-        <div style={styles.loginCard}>
-          <img
-            src={robotImage}
-            alt="Salesforce AI Assistant"
-            style={styles.loginRobot}
-          />
-
-          <h1 style={styles.loginTitle}>
+      <div style={styles.loadingPage}>
+        <div style={styles.loadingCard}>
+          <h2>
             Salesforce AI Assistant
-          </h1>
+          </h2>
 
-          <p style={styles.loginSubtitle}>
-            Ask any question!
-          </p>
-
-          {showInstallButton && (
-            <button
-              type="button"
-              onClick={installApp}
-              style={styles.installButton}
-            >
-              📲 Install App
-            </button>
-          )}
-
-          <div style={styles.tabs}>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signin");
-                setMessage("");
-              }}
-              style={{
-                ...styles.tab,
-                ...(mode === "signin"
-                  ? styles.activeTab
-                  : {}),
-              }}
-            >
-              Sign In
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setMessage("");
-              }}
-              style={{
-                ...styles.tab,
-                ...(mode === "signup"
-                  ? styles.activeTab
-                  : {}),
-              }}
-            >
-              Create Account
-            </button>
-          </div>
-
-          <form
-            onSubmit={handleEmailAuth}
-          >
-            <input
-              type="email"
-              value={email}
-              onChange={(event) =>
-                setEmail(
-                  event.target.value
-                )
-              }
-              placeholder="Email address"
-              style={styles.input}
-              autoComplete="email"
-            />
-
-            <input
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(
-                  event.target.value
-                )
-              }
-              placeholder="Password"
-              style={styles.input}
-              autoComplete={
-                mode === "signup"
-                  ? "new-password"
-                  : "current-password"
-              }
-            />
-
-            <button
-              type="submit"
-              disabled={authLoading}
-              style={
-                styles.continueButton
-              }
-            >
-              {authLoading
-                ? "Please wait..."
-                : mode === "signin"
-                ? "Continue"
-                : "Create Account"}
-            </button>
-          </form>
-
-          {mode === "signin" && (
-            <button
-              type="button"
-              onClick={
-                handleForgotPassword
-              }
-              style={
-                styles.forgotButton
-              }
-            >
-              Forgot password?
-            </button>
-          )}
-
-          <div
-            style={styles.orContainer}
-          >
-            <div
-              style={styles.line}
-            />
-
-            <span
-              style={styles.orText}
-            >
-              OR
-            </span>
-
-            <div
-              style={styles.line}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              handleGoogleLogin
-            }
-            disabled={authLoading}
-            style={
-              styles.googleButton
-            }
-          >
-            <span
-              style={styles.googleG}
-            >
-              G
-            </span>
-
-            <span>
-              Continue with Google
-            </span>
-          </button>
-
-          {message && (
-            <div
-              style={styles.message}
-            >
-              {message}
-            </div>
-          )}
-
-          <p style={styles.terms}>
-            By continuing, you agree
-            to our{" "}
-            <a
-              href="#"
-              style={styles.link}
-            >
-              Terms
-            </a>{" "}
-            and{" "}
-            <a
-              href="#"
-              style={styles.link}
-            >
-              Privacy Policy
-            </a>
-            .
-          </p>
+          <p>Loading...</p>
         </div>
       </div>
     );
   }
 
-  /* =========================
-     MAIN APP
-  ========================= */
+  // ------------------------------------------------
+  // Main UI
+  // ------------------------------------------------
 
   return (
-    <div style={styles.app}>
-      {/* HEADER */}
+    <div style={styles.page}>
+      {/* Header */}
 
       <header style={styles.header}>
-        <div style={styles.headerLeft}>
-          <img
-            src={robotImage}
-            alt="AI Assistant"
-            style={styles.headerRobot}
-          />
+        <div>
+          <h1 style={styles.logo}>
+            Salesforce AI Assistant
+          </h1>
 
-          <div>
-            <h1
-              style={styles.headerTitle}
-            >
-              Salesforce AI Assistant
-            </h1>
-
-            <p
-              style={
-                styles.headerSubtitle
-              }
-            >
-              Ask anything in any
-              language.
-            </p>
-          </div>
+          <p style={styles.subtitle}>
+            AI Assistant for Technology
+            &amp; Salesforce
+          </p>
         </div>
 
         <div
-          style={styles.headerRight}
+          style={styles.headerActions}
         >
           {showInstallButton && (
             <button
-              type="button"
-              onClick={installApp}
+              onClick={
+                handleInstallApp
+              }
               style={
-                styles.installHeaderButton
+                styles.installButton
               }
             >
-              📲 Install App
+              📱 Install App
             </button>
           )}
 
           <button
-            type="button"
-            onClick={() =>
-              setShowPro(!showPro)
-            }
-            style={
-              styles.proHeaderButton
-            }
+            onClick={openPro}
+            style={styles.proButton}
           >
             ⭐ Pro ₹100/month
           </button>
 
-          <span
-            style={styles.email}
-            className="header-email"
-          >
-            {user.email}
-          </span>
+          {user ? (
+            <div
+              style={
+                styles.userSection
+              }
+            >
+              {user.photoURL && (
+                <img
+                  src={user.photoURL}
+                  alt="Profile"
+                  style={styles.avatar}
+                />
+              )}
 
-          <button
-            type="button"
-            onClick={handleSignOut}
-            style={styles.signOut}
-          >
-            Sign Out
-          </button>
+              <span
+                style={
+                  styles.userName
+                }
+              >
+                {user.displayName ||
+                  user.email ||
+                  "User"}
+              </span>
+
+              <button
+                onClick={
+                  handleLogout
+                }
+                style={
+                  styles.logoutButton
+                }
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleLogin}
+              style={styles.loginButton}
+            >
+              Continue with Google
+            </button>
+          )}
         </div>
       </header>
 
-      {/* PRO PANEL */}
-
-      {showPro && (
-        <section
-          style={styles.proSection}
-        >
-          <div style={styles.proCard}>
-            <div
-              style={styles.proIcon}
-            >
-              ⭐
-            </div>
-
-            <div
-              style={styles.proContent}
-            >
-              <h2
-                style={styles.proTitle}
-              >
-                Upgrade to Pro
-              </h2>
-
-              <p
-                style={styles.proPrice}
-              >
-                ₹100 / month
-              </p>
-
-              <ul
-                style={styles.proList}
-              >
-                <li>
-                  More AI questions
-                </li>
-
-                <li>
-                  Advanced Salesforce
-                  assistance
-                </li>
-
-                <li>
-                  Priority features
-                </li>
-
-                <li>
-                  Monthly subscription
-                </li>
-              </ul>
-
-              <button
-                type="button"
-                onClick={
-                  handleUpgrade
-                }
-                style={
-                  styles.upgradeButton
-                }
-              >
-                💳 Upgrade to Pro
-              </button>
-
-              <p
-                style={
-                  styles.paymentNote
-                }
-              >
-                Secure payment through
-                Razorpay.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* MAIN */}
+      {/* Main */}
 
       <main style={styles.main}>
-        {/* HERO */}
-
         <section style={styles.hero}>
-          <img
-            src={robotImage}
-            alt="Salesforce AI Assistant"
-            style={styles.mainRobot}
-          />
-
-          <h2
-            style={styles.heroTitle}
-          >
-            How can I help you today?
+          <h2 style={styles.heroTitle}>
+            Ask anything about
+            technology
           </h2>
 
-          <p
-            style={
-              styles.heroDescription
-            }
-          >
+          <p style={styles.heroText}>
             Ask questions about any
             technology like Salesforce,
-            ServiceNow, SAP, Python,
-            Java and more — in English,
-            Telugu, Hindi and other
-            languages.
-          </p>
-
-          <p
-            style={
-              styles.uploadDescription
-            }
-          >
-            Type a question or upload
-            an image, file or video and
-            ask about it.
+            ServiceNow, SAP, Python, Java
+            and more — in English, Telugu,
+            Hindi and other languages.
           </p>
         </section>
 
-        {/* QUESTION BOX */}
+        {/* Question card */}
 
         <section
           style={styles.questionCard}
@@ -1106,136 +712,140 @@ function App() {
                 event.target.value
               )
             }
-            onKeyDown={handleKeyDown}
-            placeholder="Ask your technology question..."
-            rows={5}
+            placeholder="Type your technology question here..."
             style={styles.textarea}
+            rows={5}
+            disabled={loading}
           />
 
-          {/* UPLOAD + MICROPHONE BUTTONS */}
+          {/* Buttons */}
 
           <div
-            className="upload-row"
-            style={styles.uploadRow}
+            style={styles.actionRow}
           >
-            {/* MIC */}
-
             <button
-              type="button"
-              className="upload-button"
+              onClick={
+                startVoiceInput
+              }
               style={{
-                ...styles.uploadButton,
+                ...styles.iconButton,
+
                 ...(isListening
                   ? styles.listeningButton
                   : {}),
               }}
-              onClick={
-                startVoiceInput
-              }
               disabled={loading}
+              title="Speak your question"
             >
               {isListening
                 ? "🔴 Listening..."
-                : "🎤 Mic"}
+                : "🎤 Speak"}
             </button>
 
-            {/* IMAGE */}
-
             <button
-              type="button"
-              className="upload-button"
-              style={
-                styles.uploadButton
-              }
               onClick={() =>
                 imageInputRef.current?.click()
               }
+              style={
+                styles.iconButton
+              }
+              disabled={loading}
+              title="Upload image"
             >
-              📷 Image
+              🖼️ Image
             </button>
 
-            {/* FILE */}
-
             <button
-              type="button"
-              className="upload-button"
-              style={
-                styles.uploadButton
-              }
               onClick={() =>
                 fileInputRef.current?.click()
               }
+              style={
+                styles.iconButton
+              }
+              disabled={loading}
+              title="Upload file"
             >
               📎 File
             </button>
 
-            {/* VIDEO */}
-
             <button
-              type="button"
-              className="upload-button"
-              style={
-                styles.uploadButton
-              }
               onClick={() =>
                 videoInputRef.current?.click()
               }
+              style={
+                styles.iconButton
+              }
+              disabled={loading}
+              title="Upload video"
             >
               🎥 Video
             </button>
 
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              multiple
+            <button
+              onClick={() =>
+                askQuestion()
+              }
               style={
-                styles.hiddenInput
+                styles.askButton
               }
-              onChange={
-                handleFileSelect
-              }
-            />
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
-              multiple
-              style={
-                styles.hiddenInput
-              }
-              onChange={
-                handleFileSelect
-              }
-            />
-
-            <input
-              ref={videoInputRef}
-              type="file"
-              accept="video/*"
-              multiple
-              style={
-                styles.hiddenInput
-              }
-              onChange={
-                handleFileSelect
-              }
-            />
+              disabled={loading}
+            >
+              {loading
+                ? "Thinking..."
+                : "Ask AI"}
+            </button>
           </div>
 
-          {/* SELECTED FILES */}
+          {/* Image input */}
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={styles.hiddenInput}
+            onChange={
+              handleFileSelect
+            }
+          />
+
+          {/* File input */}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.txt,.doc,.docx,.csv,.json,.xml,.md"
+            multiple
+            style={styles.hiddenInput}
+            onChange={
+              handleFileSelect
+            }
+          />
+
+          {/* Video input */}
+
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            style={styles.hiddenInput}
+            onChange={
+              handleFileSelect
+            }
+          />
+
+          {/* Selected files */}
 
           {selectedFiles.length >
             0 && (
             <div
               style={
-                styles.selectedFilesBox
+                styles.filesContainer
               }
             >
               <div
                 style={
-                  styles.selectedFilesHeader
+                  styles.filesHeader
                 }
               >
                 <strong>
@@ -1243,12 +853,11 @@ function App() {
                 </strong>
 
                 <button
-                  type="button"
                   onClick={
                     clearSelectedFiles
                   }
                   style={
-                    styles.clearFilesButton
+                    styles.clearButton
                   }
                 >
                   Clear all
@@ -1260,38 +869,52 @@ function App() {
                   <div
                     key={`${file.name}-${index}`}
                     style={
-                      styles.selectedFile
+                      styles.fileItem
                     }
                   >
-                    <span
-                      style={
-                        styles.fileName
-                      }
-                    >
-                      📎 {file.name}
-                    </span>
+                    <div>
+                      <span
+                        style={
+                          styles.fileIcon
+                        }
+                      >
+                        {file.type.startsWith(
+                          "image/"
+                        )
+                          ? "🖼️"
+                          : file.type.startsWith(
+                              "video/"
+                            )
+                          ? "🎥"
+                          : "📄"}
+                      </span>
 
-                    <span
-                      style={
-                        styles.fileSize
-                      }
-                    >
-                      {(
-                        file.size /
-                        (1024 * 1024)
-                      ).toFixed(2)}{" "}
-                      MB
-                    </span>
+                      <span>
+                        {file.name}
+                      </span>
+
+                      <span
+                        style={
+                          styles.fileSize
+                        }
+                      >
+                        {" "}
+                        (
+                        {formatFileSize(
+                          file.size
+                        )}
+                        )
+                      </span>
+                    </div>
 
                     <button
-                      type="button"
                       onClick={() =>
                         removeSelectedFile(
                           index
                         )
                       }
                       style={
-                        styles.removeFileButton
+                        styles.removeButton
                       }
                     >
                       ✕
@@ -1299,62 +922,40 @@ function App() {
                   </div>
                 )
               )}
+
+              <p
+                style={
+                  styles.uploadNote
+                }
+              >
+                Click{" "}
+                <strong>
+                  Ask AI
+                </strong>{" "}
+                to analyze the
+                selected file.
+              </p>
             </div>
           )}
 
-          {/* QUESTION FOOTER */}
+          {/* Message */}
 
-          <div
-            style={
-              styles.questionFooter
-            }
-          >
-            <span
-              style={styles.hint}
+          {message && (
+            <div
+              style={styles.message}
             >
-              Press Enter to ask
-            </span>
-
-            <button
-              type="button"
-              onClick={() =>
-                askQuestion()
-              }
-              disabled={loading}
-              style={
-                styles.askButton
-              }
-            >
-              {loading
-                ? "Thinking..."
-                : "Ask AI"}
-            </button>
-          </div>
+              {message}
+            </div>
+          )}
         </section>
 
-        {/* MESSAGE */}
-
-        {message && (
-          <div
-            style={{
-              ...styles.message,
-              marginTop: "12px",
-              textAlign: "center",
-            }}
-          >
-            {message}
-          </div>
-        )}
-
-        {/* QUICK QUESTIONS */}
+        {/* Quick questions */}
 
         <section
           style={styles.quickSection}
         >
-          <h3
-            style={styles.quickTitle}
-          >
-            Quick Questions
+          <h3>
+            Quick questions
           </h3>
 
           <div
@@ -1364,17 +965,15 @@ function App() {
               (item) => (
                 <button
                   key={item}
-                  type="button"
-                  onClick={() => {
-                    setQuestion(item);
-                    setAnswer("");
-                    setIllustration(
-                      null
-                    );
-                  }}
+                  onClick={() =>
+                    handleQuickQuestion(
+                      item
+                    )
+                  }
                   style={
                     styles.quickButton
                   }
+                  disabled={loading}
                 >
                   {item}
                 </button>
@@ -1383,51 +982,57 @@ function App() {
           </div>
         </section>
 
-        {/* LOADING */}
+        {/* Answer */}
 
-        {loading && (
+        {(answer || loading) && (
           <section
             style={styles.answerCard}
           >
             <div
-              style={styles.loading}
-            >
-              <div
-                style={styles.spinner}
-              />
-
-              <span>
-                Salesforce AI is
-                thinking...
-              </span>
-            </div>
-          </section>
-        )}
-
-        {/* ANSWER */}
-
-        {!loading &&
-          answer && (
-            <section
               style={
-                styles.answerCard
+                styles.answerHeader
               }
             >
-              <h3
+              <h2>
+                🤖 AI Answer
+              </h2>
+            </div>
+
+            {loading ? (
+              <div
                 style={
-                  styles.answerTitle
+                  styles.loadingAnswer
                 }
               >
-                AI Response
-              </h3>
+                <div
+                  style={
+                    styles.spinner
+                  }
+                ></div>
 
-              <div
-                style={styles.answer}
-              >
-                {answer}
+                <p>
+                  AI is analyzing
+                  your question...
+                </p>
               </div>
+            ) : (
+              <div
+                style={
+                  styles.answerText
+                }
+              >
+                {formatAnswer(
+                  answer
+                )}
+              </div>
+            )}
 
-              {illustration && (
+            {illustration && (
+              <div
+                style={
+                  styles.illustrationContainer
+                }
+              >
                 <img
                   src={illustration}
                   alt="AI illustration"
@@ -1435,682 +1040,780 @@ function App() {
                     styles.illustration
                   }
                 />
-              )}
-            </section>
-          )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Features */}
+
+        <section
+          style={styles.features}
+        >
+          <div
+            style={styles.featureCard}
+          >
+            <div
+              style={
+                styles.featureIcon
+              }
+            >
+              🌐
+            </div>
+
+            <h3>
+              Multiple Technologies
+            </h3>
+
+            <p>
+              Salesforce, ServiceNow,
+              SAP, Python, Java and
+              more.
+            </p>
+          </div>
+
+          <div
+            style={styles.featureCard}
+          >
+            <div
+              style={
+                styles.featureIcon
+              }
+            >
+              🌍
+            </div>
+
+            <h3>
+              Multiple Languages
+            </h3>
+
+            <p>
+              Ask questions in English,
+              Telugu, Hindi and other
+              languages.
+            </p>
+          </div>
+
+          <div
+            style={styles.featureCard}
+          >
+            <div
+              style={
+                styles.featureIcon
+              }
+            >
+              🎤
+            </div>
+
+            <h3>
+              Voice Questions
+            </h3>
+
+            <p>
+              Speak your question and
+              the AI automatically
+              processes it.
+            </p>
+          </div>
+
+          <div
+            style={styles.featureCard}
+          >
+            <div
+              style={
+                styles.featureIcon
+              }
+            >
+              📎
+            </div>
+
+            <h3>
+              Upload Files
+            </h3>
+
+            <p>
+              Upload images and
+              supported documents for
+              AI analysis.
+            </p>
+          </div>
+        </section>
       </main>
 
-      {/* FOOTER */}
+      {/* Pro modal */}
 
-      <footer style={styles.footer}>
-        <strong>
-          Salesforce AI Assistant
-        </strong>
+      {showPro && (
+        <div
+          style={
+            styles.modalOverlay
+          }
+          onClick={closePro}
+        >
+          <div
+            style={styles.modal}
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <button
+              onClick={closePro}
+              style={
+                styles.modalClose
+              }
+            >
+              ✕
+            </button>
 
-        <div>
-          AI-powered Salesforce
-          learning assistant
+            <h2>
+              ⭐ Pro Plan
+            </h2>
+
+            <div
+              style={styles.price}
+            >
+              ₹100
+
+              <span
+                style={
+                  styles.priceSmall
+                }
+              >
+                + GST / month
+              </span>
+            </div>
+
+            <p>
+              Upgrade to Pro for
+              enhanced AI capabilities.
+            </p>
+
+            <div
+              style={
+                styles.paymentList
+              }
+            >
+              <div>
+                📱 PhonePe
+              </div>
+
+              <div>
+                📱 Google Pay
+              </div>
+
+              <div>
+                💳 Credit / Debit Card
+              </div>
+
+              <div>
+                🔒 Secure Razorpay
+                Checkout
+              </div>
+
+              <div>
+                🔄 Monthly recurring
+                subscription
+              </div>
+            </div>
+
+            <button
+              style={
+                styles.paymentButton
+              }
+              onClick={() => {
+                setMessage(
+                  "Razorpay subscription checkout will be connected in the payment backend step."
+                );
+
+                closePro();
+              }}
+            >
+              Continue to Secure
+              Payment
+            </button>
+
+            <p
+              style={
+                styles.paymentNote
+              }
+            >
+              Pro activation should
+              happen only after
+              successful Razorpay
+              payment verification.
+            </p>
+          </div>
         </div>
+      )}
+
+      {/* Footer */}
+
+      <footer
+        style={styles.footer}
+      >
+        <p>
+          ©{" "}
+          {new Date().getFullYear()}{" "}
+          Salesforce AI Assistant
+        </p>
+
+        <p>
+          Built for technology
+          learning, Salesforce
+          support and interview
+          preparation.
+        </p>
       </footer>
     </div>
   );
 }
 
-/* =========================
-   STYLES
-========================= */
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
+
+function formatFileSize(bytes) {
+  if (!bytes) {
+    return "0 B";
+  }
+
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB",
+  ];
+
+  const index = Math.floor(
+    Math.log(bytes) /
+      Math.log(1024)
+  );
+
+  const safeIndex = Math.min(
+    index,
+    units.length - 1
+  );
+
+  return `${(
+    bytes /
+    Math.pow(
+      1024,
+      safeIndex
+    )
+  ).toFixed(1)} ${units[safeIndex]}`;
+}
+
+function formatAnswer(text) {
+  if (!text) {
+    return null;
+  }
+
+  return text
+    .split("\n")
+    .map((line, index) => (
+      <p
+        key={index}
+        style={
+          styles.answerParagraph
+        }
+      >
+        {line || "\u00A0"}
+      </p>
+    ));
+}
+
+// --------------------------------------------------
+// Styles
+// --------------------------------------------------
 
 const styles = {
-  /* LOGIN */
-
-  loginPage: {
+  page: {
     minHeight: "100vh",
-    width: "100%",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "24px",
-    boxSizing: "border-box",
     background:
-      "linear-gradient(135deg, #eef5ff, #f8fbff)",
-    fontFamily:
-      "Inter, Arial, sans-serif",
-  },
-
-  loginCard: {
-    width: "100%",
-    maxWidth: "430px",
-    background: "#ffffff",
-    border: "1px solid #d0d5dd",
-    borderRadius: "20px",
-    padding: "30px",
-    boxSizing: "border-box",
-    textAlign: "center",
-    boxShadow:
-      "0 12px 35px rgba(0,0,0,0.12)",
-  },
-
-  loginRobot: {
-    width: "120px",
-    height: "120px",
-    objectFit: "contain",
-    display: "block",
-    margin: "0 auto 12px",
-  },
-
-  loginTitle: {
-    margin: "0",
-    color: "#101828",
-    fontSize: "27px",
-    lineHeight: "1.25",
-    fontWeight: "800",
-  },
-
-  loginSubtitle: {
-    margin: "8px 0 20px",
-    color: "#344054",
-    fontSize: "14px",
-    fontWeight: "500",
-  },
-
-  installButton: {
-    width: "100%",
-    height: "44px",
-    marginBottom: "16px",
-    border: "none",
-    borderRadius: "9px",
-    background: "#172033",
-    color: "#ffffff",
-    fontSize: "14px",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
-
-  tabs: {
-    display: "flex",
-    gap: "5px",
-    padding: "4px",
-    marginBottom: "18px",
-    background: "#eaecf0",
-    borderRadius: "10px",
-  },
-
-  tab: {
-    flex: 1,
-    border: "none",
-    borderRadius: "8px",
-    padding: "11px 5px",
-    background: "transparent",
-    color: "#344054",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "700",
-  },
-
-  activeTab: {
-    background: "#ffffff",
-    color: "#101828",
-    boxShadow:
-      "0 1px 5px rgba(0,0,0,0.12)",
-  },
-
-  input: {
-    width: "100%",
-    height: "46px",
-    border: "2px solid #98a2b3",
-    borderRadius: "9px",
-    padding: "0 13px",
-    marginBottom: "12px",
-    boxSizing: "border-box",
-    fontSize: "14px",
-    color: "#101828",
-    background: "#ffffff",
-    outline: "none",
-  },
-
-  continueButton: {
-    width: "100%",
-    height: "46px",
-    border: "none",
-    borderRadius: "9px",
-    background: "#0176d3",
-    color: "#ffffff",
-    fontSize: "14px",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
-
-  forgotButton: {
-    marginTop: "13px",
-    border: "none",
-    background: "transparent",
-    color: "#005fb2",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: "600",
-  },
-
-  orContainer: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    margin: "20px 0",
-  },
-
-  line: {
-    flex: 1,
-    height: "1px",
-    background: "#98a2b3",
-  },
-
-  orText: {
-    color: "#475467",
-    fontSize: "11px",
-    fontWeight: "700",
-  },
-
-  googleButton: {
-    width: "100%",
-    height: "46px",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "9px",
-    border: "2px solid #98a2b3",
-    borderRadius: "9px",
-    background: "#ffffff",
+      "linear-gradient(135deg, #f7f9fc 0%, #eef3ff 100%)",
     color: "#172033",
-    fontSize: "14px",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
-
-  googleG: {
-    fontSize: "18px",
-    fontWeight: "800",
-  },
-
-  message: {
-    marginTop: "15px",
-    padding: "11px",
-    borderRadius: "8px",
-    background: "#f2f4f7",
-    border: "1px solid #98a2b3",
-    color: "#172033",
-    fontSize: "12px",
-    lineHeight: "1.5",
-  },
-
-  terms: {
-    margin: "20px 0 0",
-    color: "#475467",
-    fontSize: "11px",
-    lineHeight: "1.6",
-  },
-
-  link: {
-    color: "#005fb2",
-    fontWeight: "600",
-  },
-
-  /* APP */
-
-  app: {
-    minHeight: "100vh",
-    background: "#f7f9fc",
-    color: "#101828",
     fontFamily:
-      "Inter, Arial, sans-serif",
+      "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
 
   header: {
-    minHeight: "74px",
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "18px 5%",
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    gap: "20px",
     background: "#ffffff",
     borderBottom:
-      "2px solid #d0d5dd",
-    padding: "10px 20px",
-    boxSizing: "border-box",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "15px",
+      "1px solid #e5e7eb",
+    position: "sticky",
+    top: 0,
+    zIndex: 20,
   },
 
-  headerLeft: {
+  logo: {
+    margin: 0,
+    fontSize: "24px",
+    fontWeight: 800,
+  },
+
+  subtitle: {
+    margin: "4px 0 0",
+    fontSize: "13px",
+    color: "#667085",
+  },
+
+  headerActions: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    minWidth: 0,
+    flexWrap: "wrap",
+    justifyContent:
+      "flex-end",
   },
 
-  headerRobot: {
-    width: "48px",
-    height: "48px",
-    objectFit: "contain",
-    flexShrink: 0,
+  installButton: {
+    border:
+      "1px solid #d0d5dd",
+    background: "#ffffff",
+    padding:
+      "10px 14px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: 600,
   },
 
-  headerTitle: {
-    margin: 0,
-    color: "#101828",
-    fontSize: "19px",
-    fontWeight: "800",
+  proButton: {
+    border: "none",
+    background: "#111827",
+    color: "#ffffff",
+    padding:
+      "10px 14px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: 700,
   },
 
-  headerSubtitle: {
-    margin: "3px 0 0",
-    color: "#475467",
-    fontSize: "12px",
+  loginButton: {
+    border: "none",
+    background: "#2563eb",
+    color: "#ffffff",
+    padding:
+      "10px 16px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: 700,
   },
 
-  headerRight: {
+  logoutButton: {
+    border:
+      "1px solid #d0d5dd",
+    background: "#ffffff",
+    color: "#344054",
+    padding:
+      "8px 12px",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+
+  userSection: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "flex-end",
     gap: "8px",
-    flexWrap: "wrap",
   },
 
-  installHeaderButton: {
-    border: "none",
-    borderRadius: "8px",
-    padding: "9px 12px",
-    background: "#172033",
-    color: "#ffffff",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: "700",
-  },
-
-  proHeaderButton: {
-    border: "none",
-    borderRadius: "8px",
-    padding: "9px 12px",
-    background: "#f5b700",
-    color: "#172033",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: "800",
-  },
-
-  email: {
-    color: "#172033",
-    fontSize: "12px",
-    fontWeight: "700",
-  },
-
-  signOut: {
-    padding: "9px 13px",
-    border: "2px solid #667085",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#172033",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: "700",
-  },
-
-  /* PRO */
-
-  proSection: {
-    width: "100%",
-    padding: "18px 20px 0",
-    boxSizing: "border-box",
-  },
-
-  proCard: {
-    width: "100%",
-    maxWidth: "850px",
-    margin: "0 auto",
-    background: "#ffffff",
-    border: "2px solid #f5b700",
-    borderRadius: "15px",
-    padding: "20px",
-    display: "flex",
-    gap: "18px",
-    boxSizing: "border-box",
-    boxShadow:
-      "0 5px 20px rgba(0,0,0,0.07)",
-  },
-
-  proIcon: {
-    fontSize: "34px",
-    flexShrink: 0,
-  },
-
-  proContent: {
-    flex: 1,
-  },
-
-  proTitle: {
-    margin: 0,
-    color: "#101828",
-    fontSize: "21px",
-    fontWeight: "800",
-  },
-
-  proPrice: {
-    margin: "5px 0 10px",
-    color: "#101828",
-    fontSize: "19px",
-    fontWeight: "800",
-  },
-
-  proList: {
-    margin: "8px 0 16px",
-    paddingLeft: "20px",
-    color: "#344054",
-    fontSize: "13px",
-    lineHeight: "1.9",
-  },
-
-  upgradeButton: {
-    border: "none",
-    borderRadius: "8px",
-    padding: "12px 20px",
-    background: "#0176d3",
-    color: "#ffffff",
-    cursor: "pointer",
+  userName: {
     fontSize: "14px",
-    fontWeight: "800",
+    fontWeight: 600,
   },
 
-  paymentNote: {
-    margin: "9px 0 0",
-    color: "#475467",
-    fontSize: "11px",
+  avatar: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "50%",
+    objectFit: "cover",
   },
-
-  /* MAIN */
 
   main: {
-    width: "100%",
-    maxWidth: "900px",
+    width: "90%",
+    maxWidth: "1100px",
     margin: "0 auto",
-    padding: "38px 20px",
-    boxSizing: "border-box",
+    padding:
+      "50px 0 70px",
   },
 
   hero: {
     textAlign: "center",
-    marginBottom: "28px",
-  },
-
-  mainRobot: {
-    width: "120px",
-    height: "120px",
-    objectFit: "contain",
-    display: "block",
-    margin: "0 auto 10px",
+    marginBottom: "35px",
   },
 
   heroTitle: {
     margin: 0,
-    color: "#101828",
-    fontSize: "29px",
-    fontWeight: "800",
+    fontSize: "42px",
+    lineHeight: 1.15,
+    fontWeight: 800,
   },
 
-  heroDescription: {
-    maxWidth: "680px",
-    margin: "10px auto 0",
-    color: "#344054",
-    fontSize: "14px",
-    fontWeight: "500",
-    lineHeight: "1.7",
-  },
-
-  uploadDescription: {
-    maxWidth: "680px",
-    margin: "7px auto 0",
+  heroText: {
+    maxWidth: "850px",
+    margin:
+      "18px auto 0",
+    fontSize: "17px",
+    lineHeight: 1.7,
     color: "#667085",
-    fontSize: "13px",
-    lineHeight: "1.6",
   },
-
-  /* QUESTION */
 
   questionCard: {
     background: "#ffffff",
-    border: "2px solid #98a2b3",
-    borderRadius: "15px",
-    padding: "16px",
+    borderRadius: "18px",
+    padding: "22px",
     boxShadow:
-      "0 4px 18px rgba(0,0,0,0.06)",
+      "0 12px 35px rgba(15, 23, 42, 0.08)",
+    border:
+      "1px solid #eaecf0",
   },
 
   textarea: {
     width: "100%",
-    minHeight: "130px",
-    resize: "vertical",
-    border: "2px solid #667085",
-    borderRadius: "9px",
-    padding: "13px",
     boxSizing: "border-box",
-    fontSize: "15px",
-    lineHeight: "1.6",
-    fontFamily:
-      "Inter, Arial, sans-serif",
-    color: "#101828",
-    background: "#ffffff",
+    resize: "vertical",
+    minHeight: "130px",
+    padding: "16px",
+    borderRadius: "12px",
+    border:
+      "1px solid #d0d5dd",
     outline: "none",
+    fontSize: "16px",
+    lineHeight: 1.6,
+    fontFamily: "inherit",
   },
 
-  /* UPLOAD */
-
-  uploadRow: {
+  actionRow: {
+    marginTop: "14px",
     display: "flex",
-    alignItems: "center",
-    gap: "9px",
-    marginTop: "12px",
+    gap: "10px",
     flexWrap: "wrap",
   },
 
-  uploadButton: {
-    border: "2px solid #98a2b3",
-    borderRadius: "8px",
-    padding: "9px 15px",
+  iconButton: {
+    border:
+      "1px solid #d0d5dd",
     background: "#ffffff",
-    color: "#172033",
+    color: "#344054",
+    padding:
+      "11px 15px",
+    borderRadius: "10px",
     cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: "700",
+    fontWeight: 600,
   },
 
   listeningButton: {
-    border: "2px solid #d92d20",
-    background: "#fff1f0",
-    color: "#b42318",
+    border:
+      "1px solid #ef4444",
+    background: "#fef2f2",
+    color: "#b91c1c",
+  },
+
+  askButton: {
+    marginLeft: "auto",
+    border: "none",
+    background: "#2563eb",
+    color: "#ffffff",
+    padding:
+      "11px 24px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: 800,
+    minWidth: "120px",
   },
 
   hiddenInput: {
     display: "none",
   },
 
-  selectedFilesBox: {
-    marginTop: "12px",
-    padding: "12px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "9px",
+  filesContainer: {
+    marginTop: "18px",
+    padding: "15px",
     background: "#f8fafc",
+    borderRadius: "12px",
+    border:
+      "1px solid #e2e8f0",
   },
 
-  selectedFilesHeader: {
+  filesHeader: {
     display: "flex",
+    justifyContent:
+      "space-between",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: "8px",
-    color: "#172033",
-    fontSize: "13px",
+    marginBottom: "10px",
   },
 
-  clearFilesButton: {
+  clearButton: {
     border: "none",
     background: "transparent",
-    color: "#b42318",
+    color: "#dc2626",
     cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: "700",
+    fontWeight: 600,
   },
 
-  selectedFile: {
+  fileItem: {
     display: "flex",
+    justifyContent:
+      "space-between",
     alignItems: "center",
-    gap: "8px",
-    padding: "8px 0",
-    borderTop:
-      "1px solid #eaecf0",
+    gap: "10px",
+    padding: "9px 0",
+    borderBottom:
+      "1px solid #e5e7eb",
   },
 
-  fileName: {
-    flex: 1,
-    minWidth: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    color: "#172033",
-    fontSize: "12px",
-    fontWeight: "600",
+  fileIcon: {
+    marginRight: "8px",
   },
 
   fileSize: {
     color: "#667085",
-    fontSize: "11px",
-    whiteSpace: "nowrap",
-  },
-
-  removeFileButton: {
-    border: "none",
-    background: "#fee4e2",
-    color: "#b42318",
-    borderRadius: "6px",
-    width: "26px",
-    height: "26px",
-    cursor: "pointer",
-    fontWeight: "800",
-  },
-
-  questionFooter: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: "10px",
-  },
-
-  hint: {
-    color: "#344054",
     fontSize: "12px",
-    fontWeight: "600",
   },
 
-  askButton: {
+  removeButton: {
     border: "none",
-    borderRadius: "8px",
-    padding: "11px 23px",
-    background: "#0176d3",
-    color: "#ffffff",
+    background: "transparent",
+    color: "#dc2626",
     cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "800",
+    fontSize: "16px",
   },
 
-  /* QUICK QUESTIONS */
+  uploadNote: {
+    margin:
+      "12px 0 0",
+    fontSize: "13px",
+    color: "#667085",
+  },
+
+  message: {
+    marginTop: "15px",
+    padding:
+      "12px 14px",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    borderRadius: "10px",
+    fontSize: "14px",
+  },
 
   quickSection: {
-    marginTop: "27px",
-  },
-
-  quickTitle: {
-    margin: "0 0 12px",
-    color: "#101828",
-    fontSize: "18px",
-    fontWeight: "800",
+    marginTop: "35px",
   },
 
   quickGrid: {
     display: "grid",
     gridTemplateColumns:
-      "repeat(auto-fit, minmax(190px, 1fr))",
-    gap: "10px",
+      "repeat(auto-fit, minmax(230px, 1fr))",
+    gap: "12px",
   },
 
   quickButton: {
-    minHeight: "48px",
-    background: "#ffffff",
-    border: "2px solid #98a2b3",
-    borderRadius: "9px",
-    padding: "12px",
     textAlign: "left",
+    padding: "15px",
+    border:
+      "1px solid #dbe3f0",
+    background: "#ffffff",
+    borderRadius: "12px",
     cursor: "pointer",
-    color: "#172033",
-    fontSize: "13px",
-    fontWeight: "700",
+    color: "#344054",
+    fontWeight: 600,
   },
-
-  /* ANSWER */
 
   answerCard: {
-    marginTop: "25px",
+    marginTop: "30px",
     background: "#ffffff",
-    border: "2px solid #98a2b3",
-    borderRadius: "15px",
-    padding: "20px",
+    borderRadius: "18px",
+    padding: "25px",
     boxShadow:
-      "0 4px 18px rgba(0,0,0,0.05)",
+      "0 12px 35px rgba(15, 23, 42, 0.08)",
+    border:
+      "1px solid #eaecf0",
   },
 
-  answerTitle: {
-    margin: "0 0 12px",
-    color: "#101828",
-    fontSize: "18px",
-    fontWeight: "800",
+  answerHeader: {
+    borderBottom:
+      "1px solid #eaecf0",
+    paddingBottom: "12px",
+    marginBottom: "18px",
   },
 
-  answer: {
-    whiteSpace: "pre-wrap",
-    color: "#172033",
-    fontSize: "14px",
-    lineHeight: "1.8",
-    fontWeight: "500",
-  },
-
-  illustration: {
-    display: "block",
-    maxWidth: "100%",
-    maxHeight: "350px",
-    objectFit: "contain",
-    margin: "20px auto 0",
-    borderRadius: "10px",
-  },
-
-  /* LOADING */
-
-  loading: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
+  answerText: {
+    fontSize: "16px",
+    lineHeight: 1.8,
     color: "#344054",
-    fontSize: "13px",
-    fontWeight: "600",
+  },
+
+  answerParagraph: {
+    margin:
+      "0 0 10px",
+  },
+
+  loadingAnswer: {
+    minHeight: "130px",
+    display: "flex",
+    flexDirection:
+      "column",
+    alignItems: "center",
+    justifyContent:
+      "center",
+    color: "#667085",
   },
 
   spinner: {
-    width: "18px",
-    height: "18px",
-    border: "3px solid #d0d5dd",
+    width: "30px",
+    height: "30px",
+    border:
+      "3px solid #e5e7eb",
     borderTop:
-      "3px solid #0176d3",
+      "3px solid #2563eb",
     borderRadius: "50%",
+    animation:
+      "spin 1s linear infinite",
+    marginBottom: "12px",
   },
 
-  /* FOOTER */
+  illustrationContainer: {
+    marginTop: "25px",
+    textAlign: "center",
+  },
+
+  illustration: {
+    maxWidth: "100%",
+    borderRadius: "12px",
+  },
+
+  features: {
+    marginTop: "45px",
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "18px",
+  },
+
+  featureCard: {
+    background: "#ffffff",
+    padding: "24px",
+    borderRadius: "16px",
+    border:
+      "1px solid #eaecf0",
+    textAlign: "center",
+  },
+
+  featureIcon: {
+    fontSize: "32px",
+    marginBottom: "10px",
+  },
+
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background:
+      "rgba(15, 23, 42, 0.55)",
+    display: "flex",
+    justifyContent:
+      "center",
+    alignItems: "center",
+    padding: "20px",
+    zIndex: 100,
+  },
+
+  modal: {
+    width: "100%",
+    maxWidth: "460px",
+    background: "#ffffff",
+    borderRadius: "18px",
+    padding: "30px",
+    position: "relative",
+    boxSizing: "border-box",
+    boxShadow:
+      "0 25px 60px rgba(0, 0, 0, 0.2)",
+  },
+
+  modalClose: {
+    position: "absolute",
+    right: "15px",
+    top: "15px",
+    border: "none",
+    background: "transparent",
+    fontSize: "20px",
+    cursor: "pointer",
+  },
+
+  price: {
+    fontSize: "38px",
+    fontWeight: 800,
+    margin:
+      "20px 0",
+  },
+
+  priceSmall: {
+    display: "block",
+    fontSize: "14px",
+    color: "#667085",
+    fontWeight: 500,
+    marginTop: "3px",
+  },
+
+  paymentList: {
+    display: "grid",
+    gap: "12px",
+    margin:
+      "22px 0",
+    fontSize: "15px",
+  },
+
+  paymentButton: {
+    width: "100%",
+    border: "none",
+    background: "#2563eb",
+    color: "#ffffff",
+    padding:
+      "13px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: 800,
+  },
+
+  paymentNote: {
+    fontSize: "12px",
+    color: "#667085",
+    lineHeight: 1.5,
+    marginTop: "15px",
+  },
+
+  loadingPage: {
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent:
+      "center",
+    alignItems: "center",
+    background: "#f8fafc",
+  },
+
+  loadingCard: {
+    background: "#ffffff",
+    padding: "40px",
+    borderRadius: "16px",
+    textAlign: "center",
+    boxShadow:
+      "0 10px 30px rgba(0, 0, 0, 0.08)",
+  },
 
   footer: {
     textAlign: "center",
-    padding: "25px 20px",
-    color: "#475467",
-    fontSize: "11px",
-    lineHeight: "1.7",
+    padding:
+      "30px 20px",
+    borderTop:
+      "1px solid #e5e7eb",
+    background: "#ffffff",
+    color: "#667085",
+    fontSize: "13px",
   },
 };
 
