@@ -159,3 +159,31 @@ code {
   }
 }
 
+
+@media (max-width: 900px) {
+  .heroResponsive {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .heroResponsive .robotColumn {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .heroResponsive .heroContent {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .heroResponsive .salesforceRobotImage {
+    max-width: 240px !important;
+    width: 70% !important;
+  }
+}
+

@@ -800,7 +800,7 @@ function App() {
 
       <main style={styles.main}>
 
-        <section style={styles.hero}>
+        <section className="heroResponsive" style={styles.hero}>
 
           <div style={styles.robotColumn}>
             <img
