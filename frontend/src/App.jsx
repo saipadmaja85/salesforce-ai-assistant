@@ -25,15 +25,33 @@ function App() {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [illustration, setIllustration] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  /* =========================
+     VOICE STATE
+  ========================= */
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  /* =========================
+     PWA STATE
+  ========================= */
+
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallButton, setShowInstallButton] = useState(true);
+
+  /* =========================
+     PRO STATE
+  ========================= */
+
   const [showPro, setShowPro] = useState(false);
 
   /* =========================
@@ -51,9 +69,12 @@ function App() {
   ========================= */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (currentUser) => {
+        setUser(currentUser);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -110,6 +131,7 @@ function App() {
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
+
       setInstallPrompt(event);
       setShowInstallButton(true);
     };
@@ -145,7 +167,10 @@ function App() {
 
       const result = await installPrompt.userChoice;
 
-      if (result && result.outcome === "accepted") {
+      if (
+        result &&
+        result.outcome === "accepted"
+      ) {
         setMessage(
           "Salesforce AI Assistant installed successfully."
         );
@@ -154,7 +179,10 @@ function App() {
       setInstallPrompt(null);
       setShowInstallButton(false);
     } catch (error) {
-      console.error("PWA installation error:", error);
+      console.error(
+        "PWA installation error:",
+        error
+      );
     }
   };
 
@@ -166,7 +194,9 @@ function App() {
     event.preventDefault();
 
     if (!email.trim() || !password.trim()) {
-      setMessage("Please enter your email and password.");
+      setMessage(
+        "Please enter your email and password."
+      );
       return;
     }
 
@@ -181,7 +211,9 @@ function App() {
           password
         );
 
-        setMessage("Account created successfully.");
+        setMessage(
+          "Account created successfully."
+        );
       } else {
         await signInWithEmailAndPassword(
           auth,
@@ -189,25 +221,49 @@ function App() {
           password
         );
 
-        setMessage("Signed in successfully.");
+        setMessage(
+          "Signed in successfully."
+        );
       }
     } catch (error) {
-      console.error("Authentication error:", error);
+      console.error(
+        "Authentication error:",
+        error
+      );
 
-      if (error.code === "auth/email-already-in-use") {
-        setMessage("This email is already registered.");
-      } else if (error.code === "auth/invalid-email") {
-        setMessage("Please enter a valid email address.");
-      } else if (error.code === "auth/weak-password") {
-        setMessage("Password must be at least 6 characters.");
+      if (
+        error.code ===
+        "auth/email-already-in-use"
+      ) {
+        setMessage(
+          "This email is already registered."
+        );
       } else if (
-        error.code === "auth/invalid-credential" ||
+        error.code === "auth/invalid-email"
+      ) {
+        setMessage(
+          "Please enter a valid email address."
+        );
+      } else if (
+        error.code === "auth/weak-password"
+      ) {
+        setMessage(
+          "Password must be at least 6 characters."
+        );
+      } else if (
+        error.code ===
+          "auth/invalid-credential" ||
         error.code === "auth/wrong-password" ||
         error.code === "auth/user-not-found"
       ) {
-        setMessage("Invalid email or password.");
+        setMessage(
+          "Invalid email or password."
+        );
       } else {
-        setMessage(error.message || "Authentication failed.");
+        setMessage(
+          error.message ||
+            "Authentication failed."
+        );
       }
     } finally {
       setAuthLoading(false);
@@ -223,12 +279,19 @@ function App() {
     setMessage("");
 
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(
+        auth,
+        googleProvider
+      );
     } catch (error) {
-      console.error("Google sign-in error:", error);
+      console.error(
+        "Google sign-in error:",
+        error
+      );
 
       setMessage(
-        error.message || "Google sign-in failed."
+        error.message ||
+          "Google sign-in failed."
       );
     } finally {
       setAuthLoading(false);
@@ -241,7 +304,9 @@ function App() {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      setMessage("Enter your email address first.");
+      setMessage(
+        "Enter your email address first."
+      );
       return;
     }
 
@@ -249,13 +314,19 @@ function App() {
     setMessage("");
 
     try {
-      await sendPasswordResetEmail(auth, email.trim());
+      await sendPasswordResetEmail(
+        auth,
+        email.trim()
+      );
 
       setMessage(
         "Password reset email sent. Please check your inbox."
       );
     } catch (error) {
-      console.error("Password reset error:", error);
+      console.error(
+        "Password reset error:",
+        error
+      );
 
       setMessage(
         error.message ||
@@ -272,6 +343,12 @@ function App() {
 
   const handleSignOut = async () => {
     try {
+      if (
+        recognitionRef.current
+      ) {
+        recognitionRef.current.stop();
+      }
+
       await signOut(auth);
 
       setQuestion("");
@@ -280,8 +357,12 @@ function App() {
       setSelectedFiles([]);
       setMessage("");
       setShowPro(false);
+      setIsListening(false);
     } catch (error) {
-      console.error("Sign out error:", error);
+      console.error(
+        "Sign out error:",
+        error
+      );
     }
   };
 
@@ -302,23 +383,32 @@ function App() {
   ========================= */
 
   const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files || []);
+    const files = Array.from(
+      event.target.files || []
+    );
 
     if (files.length === 0) {
       return;
     }
 
     setSelectedFiles(files);
+
     setMessage(
-      `${files.length} file${files.length > 1 ? "s" : ""} selected.`
+      `${files.length} file${
+        files.length > 1 ? "s" : ""
+      } selected.`
     );
 
     event.target.value = "";
   };
 
   const removeSelectedFile = (index) => {
-    setSelectedFiles((currentFiles) =>
-      currentFiles.filter((_, fileIndex) => fileIndex !== index)
+    setSelectedFiles(
+      (currentFiles) =>
+        currentFiles.filter(
+          (_, fileIndex) =>
+            fileIndex !== index
+        )
     );
   };
 
@@ -330,9 +420,21 @@ function App() {
      ASK AI
   ========================= */
 
-  const askQuestion = async () => {
-    if (!question.trim() && selectedFiles.length === 0) {
-      setAnswer("Please enter a question or upload a file.");
+  const askQuestion = async (
+    questionOverride = null
+  ) => {
+    const currentQuestion =
+      questionOverride !== null
+        ? questionOverride
+        : question;
+
+    if (
+      !currentQuestion.trim() &&
+      selectedFiles.length === 0
+    ) {
+      setAnswer(
+        "Please enter a question or upload a file."
+      );
       return;
     }
 
@@ -344,10 +446,8 @@ function App() {
     }
 
     /*
-     * Current backend accepts text JSON only.
-     *
-     * File processing will be connected to the backend
-     * in the next step.
+     * File processing will be connected
+     * to the backend separately.
      */
 
     if (selectedFiles.length > 0) {
@@ -362,7 +462,8 @@ function App() {
     setIllustration(null);
 
     try {
-      const token = await user.getIdToken(true);
+      const token =
+        await user.getIdToken(true);
 
       const response = await fetch(
         `${BACKEND_URL}/chat`,
@@ -370,19 +471,24 @@ function App() {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${token}`,
           },
 
           body: JSON.stringify({
-            question: question.trim(),
+            question:
+              currentQuestion.trim(),
           }),
         }
       );
 
-      const data = await response
-        .json()
-        .catch(() => null);
+      const data =
+        await response
+          .json()
+          .catch(() => null);
 
       if (!response.ok) {
         if (
@@ -394,6 +500,7 @@ function App() {
           );
 
           setShowPro(true);
+
           return;
         }
 
@@ -412,20 +519,158 @@ function App() {
       }
 
       setAnswer(
-        data?.answer || "No answer received."
+        data?.answer ||
+          "No answer received."
       );
 
       setIllustration(
         data?.illustration || null
       );
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error(
+        "Chat error:",
+        error
+      );
 
       setAnswer(
         "Unable to connect to the AI backend. Please try again."
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* =========================
+     VOICE INPUT
+  ========================= */
+
+  const startVoiceInput = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setMessage(
+        "Voice input is not supported in this browser. Please use Google Chrome."
+      );
+
+      return;
+    }
+
+    if (
+      isListening &&
+      recognitionRef.current
+    ) {
+      recognitionRef.current.stop();
+
+      return;
+    }
+
+    const recognition =
+      new SpeechRecognition();
+
+    /*
+     * Change this to:
+     *
+     * te-IN = Telugu
+     * hi-IN = Hindi
+     * en-IN = English
+     *
+     * We can add a language selector later.
+     */
+
+    recognition.lang = "en-IN";
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setMessage(
+        "🎤 Listening... Please speak your question."
+      );
+    };
+
+    recognition.onresult = async (
+      event
+    ) => {
+      const transcript =
+        event.results[0][0].transcript.trim();
+
+      if (!transcript) {
+        setMessage(
+          "I couldn't hear a question. Please try again."
+        );
+
+        return;
+      }
+
+      setQuestion(transcript);
+      setMessage(
+        `🎤 You said: ${transcript}`
+      );
+
+      /*
+       * Automatically send the spoken question
+       * to the AI backend.
+       */
+
+      await askQuestion(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error(
+        "Speech recognition error:",
+        event.error
+      );
+
+      setIsListening(false);
+      recognitionRef.current = null;
+
+      if (
+        event.error ===
+        "not-allowed"
+      ) {
+        setMessage(
+          "Microphone permission was denied. Please allow microphone access in your browser."
+        );
+      } else if (
+        event.error ===
+        "no-speech"
+      ) {
+        setMessage(
+          "I didn't hear anything. Please tap Mic and speak again."
+        );
+      } else {
+        setMessage(
+          "Voice input failed. Please try again."
+        );
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current =
+      recognition;
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error(
+        "Could not start microphone:",
+        error
+      );
+
+      setIsListening(false);
+      recognitionRef.current = null;
+
+      setMessage(
+        "Unable to start the microphone. Please try again."
+      );
     }
   };
 
@@ -439,6 +684,7 @@ function App() {
       !event.shiftKey
     ) {
       event.preventDefault();
+
       askQuestion();
     }
   };
@@ -475,7 +721,7 @@ function App() {
           </h1>
 
           <p style={styles.loginSubtitle}>
-            Ask anything in any language.
+            Ask any question!
           </p>
 
           {showInstallButton && (
@@ -522,12 +768,16 @@ function App() {
             </button>
           </div>
 
-          <form onSubmit={handleEmailAuth}>
+          <form
+            onSubmit={handleEmailAuth}
+          >
             <input
               type="email"
               value={email}
               onChange={(event) =>
-                setEmail(event.target.value)
+                setEmail(
+                  event.target.value
+                )
               }
               placeholder="Email address"
               style={styles.input}
@@ -538,7 +788,9 @@ function App() {
               type="password"
               value={password}
               onChange={(event) =>
-                setPassword(event.target.value)
+                setPassword(
+                  event.target.value
+                )
               }
               placeholder="Password"
               style={styles.input}
@@ -552,7 +804,9 @@ function App() {
             <button
               type="submit"
               disabled={authLoading}
-              style={styles.continueButton}
+              style={
+                styles.continueButton
+              }
             >
               {authLoading
                 ? "Please wait..."
@@ -565,30 +819,48 @@ function App() {
           {mode === "signin" && (
             <button
               type="button"
-              onClick={handleForgotPassword}
-              style={styles.forgotButton}
+              onClick={
+                handleForgotPassword
+              }
+              style={
+                styles.forgotButton
+              }
             >
               Forgot password?
             </button>
           )}
 
-          <div style={styles.orContainer}>
-            <div style={styles.line} />
+          <div
+            style={styles.orContainer}
+          >
+            <div
+              style={styles.line}
+            />
 
-            <span style={styles.orText}>
+            <span
+              style={styles.orText}
+            >
               OR
             </span>
 
-            <div style={styles.line} />
+            <div
+              style={styles.line}
+            />
           </div>
 
           <button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={
+              handleGoogleLogin
+            }
             disabled={authLoading}
-            style={styles.googleButton}
+            style={
+              styles.googleButton
+            }
           >
-            <span style={styles.googleG}>
+            <span
+              style={styles.googleG}
+            >
               G
             </span>
 
@@ -598,18 +870,27 @@ function App() {
           </button>
 
           {message && (
-            <div style={styles.message}>
+            <div
+              style={styles.message}
+            >
               {message}
             </div>
           )}
 
           <p style={styles.terms}>
-            By continuing, you agree to our{" "}
-            <a href="#" style={styles.link}>
+            By continuing, you agree
+            to our{" "}
+            <a
+              href="#"
+              style={styles.link}
+            >
               Terms
             </a>{" "}
             and{" "}
-            <a href="#" style={styles.link}>
+            <a
+              href="#"
+              style={styles.link}
+            >
               Privacy Policy
             </a>
             .
@@ -636,22 +917,33 @@ function App() {
           />
 
           <div>
-            <h1 style={styles.headerTitle}>
+            <h1
+              style={styles.headerTitle}
+            >
               Salesforce AI Assistant
             </h1>
 
-            <p style={styles.headerSubtitle}>
-              Ask anything in any language.
+            <p
+              style={
+                styles.headerSubtitle
+              }
+            >
+              Ask anything in any
+              language.
             </p>
           </div>
         </div>
 
-        <div style={styles.headerRight}>
+        <div
+          style={styles.headerRight}
+        >
           {showInstallButton && (
             <button
               type="button"
               onClick={installApp}
-              style={styles.installHeaderButton}
+              style={
+                styles.installHeaderButton
+              }
             >
               📲 Install App
             </button>
@@ -662,7 +954,9 @@ function App() {
             onClick={() =>
               setShowPro(!showPro)
             }
-            style={styles.proHeaderButton}
+            style={
+              styles.proHeaderButton
+            }
           >
             ⭐ Pro ₹100/month
           </button>
@@ -687,28 +981,41 @@ function App() {
       {/* PRO PANEL */}
 
       {showPro && (
-        <section style={styles.proSection}>
+        <section
+          style={styles.proSection}
+        >
           <div style={styles.proCard}>
-            <div style={styles.proIcon}>
+            <div
+              style={styles.proIcon}
+            >
               ⭐
             </div>
 
-            <div style={styles.proContent}>
-              <h2 style={styles.proTitle}>
+            <div
+              style={styles.proContent}
+            >
+              <h2
+                style={styles.proTitle}
+              >
                 Upgrade to Pro
               </h2>
 
-              <p style={styles.proPrice}>
+              <p
+                style={styles.proPrice}
+              >
                 ₹100 / month
               </p>
 
-              <ul style={styles.proList}>
+              <ul
+                style={styles.proList}
+              >
                 <li>
                   More AI questions
                 </li>
 
                 <li>
-                  Advanced Salesforce assistance
+                  Advanced Salesforce
+                  assistance
                 </li>
 
                 <li>
@@ -722,14 +1029,23 @@ function App() {
 
               <button
                 type="button"
-                onClick={handleUpgrade}
-                style={styles.upgradeButton}
+                onClick={
+                  handleUpgrade
+                }
+                style={
+                  styles.upgradeButton
+                }
               >
                 💳 Upgrade to Pro
               </button>
 
-              <p style={styles.paymentNote}>
-                Secure payment through Razorpay.
+              <p
+                style={
+                  styles.paymentNote
+                }
+              >
+                Secure payment through
+                Razorpay.
               </p>
             </div>
           </div>
@@ -748,30 +1064,47 @@ function App() {
             style={styles.mainRobot}
           />
 
-          <h2 style={styles.heroTitle}>
+          <h2
+            style={styles.heroTitle}
+          >
             How can I help you today?
           </h2>
 
-          <p style={styles.heroDescription}>
-            Ask questions about any technology like
-            Salesforce, ServiceNow, SAP, Python,
-            Java and more — in English, Telugu,
-            Hindi and other languages.
+          <p
+            style={
+              styles.heroDescription
+            }
+          >
+            Ask questions about any
+            technology like Salesforce,
+            ServiceNow, SAP, Python,
+            Java and more — in English,
+            Telugu, Hindi and other
+            languages.
           </p>
 
-          <p style={styles.uploadDescription}>
-            Type a question or upload an image,
-            file or video and ask about it.
+          <p
+            style={
+              styles.uploadDescription
+            }
+          >
+            Type a question or upload
+            an image, file or video and
+            ask about it.
           </p>
         </section>
 
         {/* QUESTION BOX */}
 
-        <section style={styles.questionCard}>
+        <section
+          style={styles.questionCard}
+        >
           <textarea
             value={question}
             onChange={(event) =>
-              setQuestion(event.target.value)
+              setQuestion(
+                event.target.value
+              )
             }
             onKeyDown={handleKeyDown}
             placeholder="Ask your technology question..."
@@ -779,16 +1112,41 @@ function App() {
             style={styles.textarea}
           />
 
-          {/* UPLOAD BUTTONS */}
+          {/* UPLOAD + MICROPHONE BUTTONS */}
 
           <div
             className="upload-row"
             style={styles.uploadRow}
           >
+            {/* MIC */}
+
             <button
               type="button"
               className="upload-button"
-              style={styles.uploadButton}
+              style={{
+                ...styles.uploadButton,
+                ...(isListening
+                  ? styles.listeningButton
+                  : {}),
+              }}
+              onClick={
+                startVoiceInput
+              }
+              disabled={loading}
+            >
+              {isListening
+                ? "🔴 Listening..."
+                : "🎤 Mic"}
+            </button>
+
+            {/* IMAGE */}
+
+            <button
+              type="button"
+              className="upload-button"
+              style={
+                styles.uploadButton
+              }
               onClick={() =>
                 imageInputRef.current?.click()
               }
@@ -796,10 +1154,14 @@ function App() {
               📷 Image
             </button>
 
+            {/* FILE */}
+
             <button
               type="button"
               className="upload-button"
-              style={styles.uploadButton}
+              style={
+                styles.uploadButton
+              }
               onClick={() =>
                 fileInputRef.current?.click()
               }
@@ -807,10 +1169,14 @@ function App() {
               📎 File
             </button>
 
+            {/* VIDEO */}
+
             <button
               type="button"
               className="upload-button"
-              style={styles.uploadButton}
+              style={
+                styles.uploadButton
+              }
               onClick={() =>
                 videoInputRef.current?.click()
               }
@@ -823,8 +1189,12 @@ function App() {
               type="file"
               accept="image/*"
               multiple
-              style={styles.hiddenInput}
-              onChange={handleFileSelect}
+              style={
+                styles.hiddenInput
+              }
+              onChange={
+                handleFileSelect
+              }
             />
 
             <input
@@ -832,8 +1202,12 @@ function App() {
               type="file"
               accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
               multiple
-              style={styles.hiddenInput}
-              onChange={handleFileSelect}
+              style={
+                styles.hiddenInput
+              }
+              onChange={
+                handleFileSelect
+              }
             />
 
             <input
@@ -841,24 +1215,41 @@ function App() {
               type="file"
               accept="video/*"
               multiple
-              style={styles.hiddenInput}
-              onChange={handleFileSelect}
+              style={
+                styles.hiddenInput
+              }
+              onChange={
+                handleFileSelect
+              }
             />
           </div>
 
           {/* SELECTED FILES */}
 
-          {selectedFiles.length > 0 && (
-            <div style={styles.selectedFilesBox}>
-              <div style={styles.selectedFilesHeader}>
+          {selectedFiles.length >
+            0 && (
+            <div
+              style={
+                styles.selectedFilesBox
+              }
+            >
+              <div
+                style={
+                  styles.selectedFilesHeader
+                }
+              >
                 <strong>
                   Selected files
                 </strong>
 
                 <button
                   type="button"
-                  onClick={clearSelectedFiles}
-                  style={styles.clearFilesButton}
+                  onClick={
+                    clearSelectedFiles
+                  }
+                  style={
+                    styles.clearFilesButton
+                  }
                 >
                   Clear all
                 </button>
@@ -868,13 +1259,23 @@ function App() {
                 (file, index) => (
                   <div
                     key={`${file.name}-${index}`}
-                    style={styles.selectedFile}
+                    style={
+                      styles.selectedFile
+                    }
                   >
-                    <span style={styles.fileName}>
+                    <span
+                      style={
+                        styles.fileName
+                      }
+                    >
                       📎 {file.name}
                     </span>
 
-                    <span style={styles.fileSize}>
+                    <span
+                      style={
+                        styles.fileSize
+                      }
+                    >
                       {(
                         file.size /
                         (1024 * 1024)
@@ -885,7 +1286,9 @@ function App() {
                     <button
                       type="button"
                       onClick={() =>
-                        removeSelectedFile(index)
+                        removeSelectedFile(
+                          index
+                        )
                       }
                       style={
                         styles.removeFileButton
@@ -899,16 +1302,28 @@ function App() {
             </div>
           )}
 
-          <div style={styles.questionFooter}>
-            <span style={styles.hint}>
+          {/* QUESTION FOOTER */}
+
+          <div
+            style={
+              styles.questionFooter
+            }
+          >
+            <span
+              style={styles.hint}
+            >
               Press Enter to ask
             </span>
 
             <button
               type="button"
-              onClick={askQuestion}
+              onClick={() =>
+                askQuestion()
+              }
               disabled={loading}
-              style={styles.askButton}
+              style={
+                styles.askButton
+              }
             >
               {loading
                 ? "Thinking..."
@@ -917,40 +1332,73 @@ function App() {
           </div>
         </section>
 
+        {/* MESSAGE */}
+
+        {message && (
+          <div
+            style={{
+              ...styles.message,
+              marginTop: "12px",
+              textAlign: "center",
+            }}
+          >
+            {message}
+          </div>
+        )}
+
         {/* QUICK QUESTIONS */}
 
-        <section style={styles.quickSection}>
-          <h3 style={styles.quickTitle}>
+        <section
+          style={styles.quickSection}
+        >
+          <h3
+            style={styles.quickTitle}
+          >
             Quick Questions
           </h3>
 
-          <div style={styles.quickGrid}>
-            {quickQuestions.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  setQuestion(item);
-                  setAnswer("");
-                  setIllustration(null);
-                }}
-                style={styles.quickButton}
-              >
-                {item}
-              </button>
-            ))}
+          <div
+            style={styles.quickGrid}
+          >
+            {quickQuestions.map(
+              (item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => {
+                    setQuestion(item);
+                    setAnswer("");
+                    setIllustration(
+                      null
+                    );
+                  }}
+                  style={
+                    styles.quickButton
+                  }
+                >
+                  {item}
+                </button>
+              )
+            )}
           </div>
         </section>
 
         {/* LOADING */}
 
         {loading && (
-          <section style={styles.answerCard}>
-            <div style={styles.loading}>
-              <div style={styles.spinner} />
+          <section
+            style={styles.answerCard}
+          >
+            <div
+              style={styles.loading}
+            >
+              <div
+                style={styles.spinner}
+              />
 
               <span>
-                Salesforce AI is thinking...
+                Salesforce AI is
+                thinking...
               </span>
             </div>
           </section>
@@ -958,25 +1406,38 @@ function App() {
 
         {/* ANSWER */}
 
-        {!loading && answer && (
-          <section style={styles.answerCard}>
-            <h3 style={styles.answerTitle}>
-              AI Response
-            </h3>
+        {!loading &&
+          answer && (
+            <section
+              style={
+                styles.answerCard
+              }
+            >
+              <h3
+                style={
+                  styles.answerTitle
+                }
+              >
+                AI Response
+              </h3>
 
-            <div style={styles.answer}>
-              {answer}
-            </div>
+              <div
+                style={styles.answer}
+              >
+                {answer}
+              </div>
 
-            {illustration && (
-              <img
-                src={illustration}
-                alt="AI illustration"
-                style={styles.illustration}
-              />
-            )}
-          </section>
-        )}
+              {illustration && (
+                <img
+                  src={illustration}
+                  alt="AI illustration"
+                  style={
+                    styles.illustration
+                  }
+                />
+              )}
+            </section>
+          )}
       </main>
 
       {/* FOOTER */}
@@ -987,8 +1448,8 @@ function App() {
         </strong>
 
         <div>
-          AI-powered Salesforce learning
-          assistant
+          AI-powered Salesforce
+          learning assistant
         </div>
       </footer>
     </div>
@@ -1456,6 +1917,12 @@ const styles = {
     fontWeight: "700",
   },
 
+  listeningButton: {
+    border: "2px solid #d92d20",
+    background: "#fff1f0",
+    color: "#b42318",
+  },
+
   hiddenInput: {
     display: "none",
   },
@@ -1491,7 +1958,8 @@ const styles = {
     alignItems: "center",
     gap: "8px",
     padding: "8px 0",
-    borderTop: "1px solid #eaecf0",
+    borderTop:
+      "1px solid #eaecf0",
   },
 
   fileName: {
