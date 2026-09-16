@@ -7,6 +7,7 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
+import salesforceRobot from "./assets/salesforce-ai-robot.png";
 
 // ==================================================
 // FIREBASE
@@ -541,9 +542,11 @@ function App() {
         <section style={styles.hero}>
 
           <div style={styles.robotColumn}>
-  
-            <div style={styles.robotBadge}>
-            </div>
+            <img
+              src={salesforceRobot}
+              alt="Salesforce AI Assistant"
+              style={styles.salesforceRobotImage}
+            />
           </div>
 
           <div style={styles.heroContent}>
@@ -1181,6 +1184,14 @@ const styles = {
     gap: "40px",
     alignItems: "center",
     marginBottom: "40px",
+  },
+
+  salesforceRobotImage: {
+    width: "320px",
+    maxWidth: "100%",
+    height: "auto",
+    display: "block",
+    margin: "0 auto",
   },
 
   robotColumn: {
