@@ -542,6 +542,14 @@ function App() {
             style={{ width: "100px", maxWidth: "60%", height: "auto", display: "block", margin: "0 auto 20px" }}
           />
 
+          <button
+            type="button"
+            onClick={handleInstallApp}
+            style={styles.installButton}
+          >
+            📲 Install App
+          </button>
+
           <div style={styles.authTabs}>
             <button
               type="button"
