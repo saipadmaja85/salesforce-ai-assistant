@@ -36,42 +36,6 @@ const BACKEND_URL =
   "https://salesforce-ai-assistant-8gvo.onrender.com";
 
 // ==================================================
-// ROBOT
-// ==================================================
-
-function Robot() {
-  return (
-    <div style={styles.robotWrap} aria-label="AI Robot">
-      <div style={styles.robotGlow} />
-
-      <div style={styles.robot}>
-        <div style={styles.robotAntenna}>
-          <span style={styles.antennaLight}>●</span>
-        </div>
-
-        <div style={styles.robotHead}>
-          <div style={styles.robotEye}>●</div>
-          <div style={styles.robotEye}>●</div>
-          <div style={styles.robotSmile}>⌣</div>
-        </div>
-
-        <div style={styles.robotBody}>
-          <div style={styles.robotScreen}>
-            AI
-          </div>
-        </div>
-
-        <div style={styles.robotArmLeft}>╲</div>
-        <div style={styles.robotArmRight}>╱</div>
-
-        <div style={styles.robotHandLeft}>●</div>
-        <div style={styles.robotHandRight}>●</div>
-      </div>
-    </div>
-  );
-}
-
-// ==================================================
 // APP
 // ==================================================
 
@@ -486,7 +450,6 @@ function App() {
     return (
       <div style={styles.loadingPage}>
         <div style={styles.loadingCard}>
-          <Robot />
           <h2>Salesforce AI Assistant</h2>
           <p>Loading...</p>
         </div>
@@ -506,7 +469,6 @@ function App() {
       <header style={styles.header}>
 
         <div style={styles.brand}>
-          <div style={styles.brandIcon}>🤖</div>
 
           <div>
             <h1 style={styles.logo}>
@@ -579,10 +541,8 @@ function App() {
         <section style={styles.hero}>
 
           <div style={styles.robotColumn}>
-            <Robot />
-
+  
             <div style={styles.robotBadge}>
-              🤖 Your AI Technology Assistant
             </div>
           </div>
 
@@ -836,9 +796,6 @@ function App() {
           <section style={styles.answerCard}>
 
             <div style={styles.answerHeader}>
-              <div style={styles.answerRobot}>
-                🤖
-              </div>
 
               <div>
                 <h2>
@@ -1655,9 +1612,6 @@ const styles = {
     fontWeight: 600,
   },
 
-  answerRobot: {
-    fontSize: "38px",
-  },
 
   answerText: {
     fontSize: "17px",
