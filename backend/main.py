@@ -1,5 +1,13 @@
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Header,
+    UploadFile,
+    File,
+    Form,
+)
 from fastapi.middleware.cors import CORSMiddleware
+
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -45,7 +53,10 @@ try:
         )
 
 except Exception as error:
-    print("Firebase initialization error:", error)
+    print(
+        "Firebase initialization error:",
+        error
+    )
     raise
 
 
@@ -55,7 +66,7 @@ except Exception as error:
 
 app = FastAPI(
     title="Technology AI Assistant",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
@@ -68,7 +79,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://frontend-git-main-salesforce21.vercel.app",
-        "https://frontend-rho-liart-ck2le9peci.vercel.app",
+        "https://frontend-rho-liart-ck2le9pec.vercel.app",
         "https://www.salesforce-ai-assistant.com",
     ],
     allow_credentials=True,
@@ -81,7 +92,9 @@ app.add_middleware(
 # OpenAI Client
 # ============================================================
 
-openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv(
+    "OPENAI_API_KEY"
+)
 
 if not openai_api_key:
     raise RuntimeError(
@@ -91,67 +104,6 @@ if not openai_api_key:
 client = OpenAI(
     api_key=openai_api_key
 )
-
-
-# ============================================================
-# Firebase Authentication
-# ============================================================
-
-def verify_user(authorization: str | None):
-
-    if not authorization:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required."
-        )
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authentication format."
-        )
-
-    id_token = authorization.split(
-        " ",
-        1
-    )[1]
-
-    if not id_token:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication token is missing."
-        )
-
-    try:
-
-        decoded_token = auth.verify_id_token(
-            id_token
-        )
-
-        uid = decoded_token.get("uid")
-
-        if not uid:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid authentication token."
-            )
-
-        return uid
-
-    except HTTPException:
-        raise
-
-    except Exception as error:
-
-        print(
-            "Firebase token verification error:",
-            error
-        )
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authentication token."
-        )
 
 
 # ============================================================
@@ -174,53 +126,32 @@ You can answer questions about:
 - Python
 - Java
 - JavaScript
-- TypeScript
-- C
-- C++
-- C#
-- Go
-- Rust
-- Kotlin
-- Swift
-- PHP
-- Ruby
-- SQL
+- React
 - HTML
 - CSS
-- React
-- Angular
-- Node.js
-- Playwright
-- Selenium
-- Cypress
-- Appium
-- API testing
-- Manual testing
-- Automation testing
-- Software engineering
-- DevOps
+- APIs
+- Databases
+- Cloud computing
 - AWS
 - Azure
 - Google Cloud
-- Databases
-- APIs
-- AI and Machine Learning
-- Data Science
-- Cybersecurity concepts
-- Business analysis
-- Business scenarios
-- IT concepts
-- Interview preparation
-- Resume and career questions
-- General knowledge
-- Writing and communication
-- Education
+- DevOps
+- Git
+- Testing
+- Selenium
+- Playwright
+- Cypress
+- Appium
+- Automation
+- Software engineering
+- Programming
+- Business technology
+- General technology
 - Other technologies
-- Other business topics
-- General questions
 
 You should also answer questions about technologies
 that are not explicitly listed above.
+
 
 ==================================================
 LANGUAGE SUPPORT
@@ -228,10 +159,12 @@ LANGUAGE SUPPORT
 
 Understand the user's language automatically.
 
-The user may write in English, Telugu, Hindi, Tamil,
-Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi,
-Urdu, Spanish, French, German, Portuguese, Japanese,
-Korean, Chinese, Arabic, or other languages.
+The user may write in:
+
+English, Telugu, Hindi, Tamil, Kannada, Malayalam,
+Marathi, Bengali, Gujarati, Punjabi, Urdu, Spanish,
+French, German, Portuguese, Japanese, Korean, Chinese,
+Arabic, or other languages.
 
 The user may mix languages.
 
@@ -263,32 +196,72 @@ If the user asks in English, respond in English.
 If the user explicitly requests another language,
 follow that request.
 
+
 ==================================================
 SALESFORCE QUESTIONS
 ==================================================
 
-When the question is about Salesforce, provide a
-practical Salesforce-specific answer.
+When the question is about Salesforce, provide a practical
+Salesforce-specific answer.
 
 For Salesforce implementation questions:
 
-1. Give the Recommended Solution first.
+1. Give the recommended solution first.
 2. Give clear step-by-step instructions.
 3. Keep every step separate.
 4. Explain where to navigate in Salesforce.
 5. Explain what to click.
 6. Explain what to configure.
-7. Mention relevant objects, fields, flows,
-   validation rules, permissions, profiles,
-   permission sets, sharing rules, Apex, LWC,
-   SOQL, CPQ, integrations, and automation
-   when applicable.
+7. Mention relevant Salesforce features when applicable:
+   - Objects
+   - Fields
+   - Flow
+   - Validation Rules
+   - Profiles
+   - Permission Sets
+   - Role Hierarchy
+   - Sharing Rules
+   - OWD
+   - Apex
+   - LWC
+   - SOQL
+   - SOSL
+   - CPQ
+   - Integrations
+   - Automation
+
 8. Include code when required.
-9. Include testing scenarios and expected results.
-10. Mention important notes and limitations.
+9. Include testing scenarios when useful.
+10. Mention assumptions and limitations.
 11. Prefer current Salesforce functionality.
-12. Avoid outdated Salesforce features.
-13. Never invent Salesforce features.
+12. Do not invent Salesforce features.
+
+For Salesforce questions, use this structure when appropriate:
+
+Recommended Solution
+
+Step 1 — Action
+
+1. Navigation
+2. What to click
+3. What to configure
+
+Step 2 — Action
+
+1. Navigation
+2. What to click
+3. What to configure
+
+Example / Code
+
+Testing
+
+Test 1 — Scenario
+
+Expected Result
+
+Important Notes
+
 
 ==================================================
 PROGRAMMING QUESTIONS
@@ -301,8 +274,13 @@ For programming questions:
 - Explain the code simply.
 - Mention expected output when useful.
 - Carefully diagnose errors.
-- Match the programming language requested.
-- Do not change programming languages unnecessarily.
+- Match the requested programming language.
+- Do not unnecessarily change languages.
+
+For beginners, keep explanations simple.
+
+For advanced users, provide more technical detail.
+
 
 ==================================================
 TESTING QUESTIONS
@@ -313,52 +291,38 @@ including when relevant:
 
 - Test scenarios
 - Test cases
-- Preconditions
-- Test data
-- Expected results
-- Positive testing
-- Negative testing
-- Boundary testing
+- Functional testing
 - Regression testing
 - Sanity testing
 - Smoke testing
 - Integration testing
 - UAT
+- Test planning
+- Test strategy
+- Defect lifecycle
 - Automation testing
 - API testing
 - UI testing
-- Defect lifecycle
 
 For automation questions, provide practical examples
 for Playwright, Selenium, Cypress, Appium, or other
 relevant tools.
 
+
 ==================================================
 BUSINESS QUESTIONS
 ==================================================
 
-For business scenarios:
+For business technology questions:
 
 1. Understand the business requirement.
-2. Identify the problem.
-3. Explain the recommended solution.
-4. Give practical implementation steps.
-5. Mention alternatives when useful.
-6. Explain risks and limitations.
+2. Explain the recommended solution.
+3. Give practical implementation steps.
+4. Mention alternatives when useful.
+5. Explain risks and limitations.
 
 Do not assume every business problem requires Salesforce.
 
-==================================================
-GENERAL QUESTIONS
-==================================================
-
-For general questions:
-
-Answer directly and clearly.
-
-For simple questions, keep the answer concise.
-
-For complex questions, use structured explanations.
 
 ==================================================
 UPLOADED FILES
@@ -370,76 +334,112 @@ uploaded content carefully.
 If the user asks a question about the uploaded content,
 base the answer on the uploaded content.
 
-Do not pretend that you saw information that is not
-actually present in the uploaded file.
+Do not pretend to see information that is not actually
+present in the uploaded file.
 
 If the uploaded content is unclear, explain what is unclear.
 
 For images:
 
-- Identify visible objects, text, diagrams, UI elements,
-  charts, code, errors, or other relevant content.
-- Answer the user's question based on the image.
+- Analyze visible objects.
+- Read visible text where possible.
+- Analyze diagrams.
+- Analyze charts.
+- Analyze code.
+- Analyze error messages.
+- Analyze Salesforce screens.
+- Analyze UI elements.
 
 For documents:
 
-- Extract and understand the relevant content.
-- Summarize or explain it when requested.
-- Answer questions about the document.
+- Understand the document content.
+- Summarize when requested.
+- Answer questions based on the document.
+- Explain relevant sections.
+
 
 ==================================================
 RESPONSE STYLE
 ==================================================
 
-Be helpful, accurate, practical, and clear.
+Answer directly and clearly.
 
-Do not make every response unnecessarily long.
+For simple questions, keep the answer concise.
 
-For simple questions:
-give a concise answer.
+For complex questions, use:
 
-For implementation questions:
-give detailed step-by-step instructions.
+- Headings
+- Numbered steps
+- Bullet points
+- Code blocks
+- Examples
+- Testing scenarios
 
-Use headings, numbered steps, bullet points, and code
-blocks when they improve readability.
-
-Match the user's level of technical knowledge.
+Match the user's technical knowledge.
 
 If the user uses informal language, respond naturally.
+
+Do not pretend to know something you do not know.
+
+Do not invent commands, APIs, configuration options,
+or software features.
+
+Focus on solving the user's actual question.
 """
 
 
 # ============================================================
-# AI Illustration
+# Firebase Authentication
 # ============================================================
 
-def generate_illustration(prompt):
+def verify_user(
+    authorization: str | None
+):
+
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required.",
+        )
+
+    if not authorization.startswith(
+        "Bearer "
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication format.",
+        )
+
+    id_token = authorization.split(
+        " ",
+        1
+    )[1]
+
+    if not id_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing authentication token.",
+        )
 
     try:
 
-        result = client.images.generate(
-            model="gpt-image-2",
-            prompt=prompt,
-            size="1024x1024",
+        decoded_token = auth.verify_id_token(
+            id_token
         )
 
-        if (
-            result.data
-            and result.data[0].b64_json
-        ):
-            return result.data[0].b64_json
-
-        return None
+        return decoded_token["uid"]
 
     except Exception as error:
 
         print(
-            "Image generation error:",
+            "Firebase token verification error:",
             error
         )
 
-        return None
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication token.",
+        )
 
 
 # ============================================================
@@ -450,8 +450,10 @@ def generate_illustration(prompt):
 def home():
 
     return {
-        "message": "Salesforce AI Assistant backend is running",
-        "status": "ok"
+        "message":
+            "Salesforce AI Assistant backend is running",
+        "status":
+            "ok",
     }
 
 
@@ -464,7 +466,7 @@ def chat(
     data: dict,
     authorization: str | None = Header(
         default=None
-    )
+    ),
 ):
 
     uid = verify_user(
@@ -480,29 +482,39 @@ def chat(
         ""
     )
 
+    if not isinstance(
+        question,
+        str
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Question must be text.",
+        )
+
     if not question.strip():
 
         return {
-            "answer": "Please enter a question.",
-            "illustration": None
+            "answer":
+                "Please enter a question.",
+            "illustration":
+                None,
         }
 
     try:
 
         response = client.responses.create(
-
             model="gpt-5.6-luna",
-
             instructions=AI_INSTRUCTIONS,
-
             input=question,
         )
 
         answer = response.output_text
 
         return {
-            "answer": answer,
-            "illustration": None
+            "answer":
+                answer,
+            "illustration":
+                None,
         }
 
     except Exception as error:
@@ -514,7 +526,10 @@ def chat(
 
         raise HTTPException(
             status_code=500,
-            detail="The AI assistant encountered an error."
+            detail=(
+                "The AI assistant encountered "
+                "an error."
+            ),
         )
 
 
@@ -524,11 +539,13 @@ def chat(
 
 @app.post("/chat-upload")
 async def chat_upload(
-    question: str = Form(default=""),
+    question: str = Form(
+        default=""
+    ),
     file: UploadFile = File(...),
     authorization: str | None = Header(
         default=None
-    )
+    ),
 ):
 
     uid = verify_user(
@@ -542,14 +559,19 @@ async def chat_upload(
     if not file:
         raise HTTPException(
             status_code=400,
-            detail="No file uploaded."
+            detail="No file uploaded.",
         )
 
-    filename = file.filename or "uploaded-file"
+    filename = (
+        file.filename
+        or "uploaded-file"
+    )
 
     content_type = (
         file.content_type
-        or mimetypes.guess_type(filename)[0]
+        or mimetypes.guess_type(
+            filename
+        )[0]
         or "application/octet-stream"
     )
 
@@ -558,7 +580,7 @@ async def chat_upload(
     if not file_bytes:
         raise HTTPException(
             status_code=400,
-            detail="Uploaded file is empty."
+            detail="Uploaded file is empty.",
         )
 
     print(
@@ -567,26 +589,30 @@ async def chat_upload(
         f"size={len(file_bytes)} bytes"
     )
 
+    user_question = question.strip()
+
+    if not user_question:
+        user_question = (
+            "Please analyze this uploaded file "
+            "and explain the important information "
+            "in it."
+        )
+
     try:
 
-        user_question = question.strip()
-
-        if not user_question:
-
-            user_question = (
-                "Please analyze this uploaded file and "
-                "explain the important information in it."
-            )
-
-        # ----------------------------------------------------
+        # ====================================================
         # IMAGE
-        # ----------------------------------------------------
+        # ====================================================
 
-        if content_type.startswith("image/"):
+        if content_type.startswith(
+            "image/"
+        ):
 
-            encoded_image = base64.b64encode(
-                file_bytes
-            ).decode("utf-8")
+            encoded_image = (
+                base64.b64encode(
+                    file_bytes
+                ).decode("utf-8")
+            )
 
             image_data_url = (
                 f"data:{content_type};base64,"
@@ -604,51 +630,72 @@ async def chat_upload(
                         "role": "user",
                         "content": [
                             {
-                                "type": "input_text",
-                                "text": user_question
+                                "type":
+                                    "input_text",
+                                "text":
+                                    user_question,
                             },
                             {
-                                "type": "input_image",
-                                "image_url": image_data_url,
-                                "detail": "auto"
-                            }
-                        ]
+                                "type":
+                                    "input_image",
+                                "image_url":
+                                    image_data_url,
+                                "detail":
+                                    "auto",
+                            },
+                        ],
                     }
-                ]
+                ],
             )
 
-            answer = response.output_text
+            answer = (
+                response.output_text
+            )
 
             return {
-                "answer": answer,
-                "filename": filename,
-                "file_type": content_type,
-                "illustration": None
+                "answer":
+                    answer,
+                "filename":
+                    filename,
+                "file_type":
+                    content_type,
+                "illustration":
+                    None,
             }
 
-        # ----------------------------------------------------
-        # DOCUMENT / PDF / TEXT FILE
-        # ----------------------------------------------------
+
+        # ====================================================
+        # PDF / DOCUMENT / TEXT
+        # ====================================================
+
+        document_types = [
+            "application/pdf",
+            "text/plain",
+            "text/csv",
+            "text/markdown",
+            "text/xml",
+            "application/json",
+            "application/xml",
+            "application/msword",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ]
 
         if (
-            content_type == "application/pdf"
-            or content_type.startswith("text/")
-            or content_type
-            in [
-                "application/json",
-                "application/xml",
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/vnd.ms-excel",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "application/vnd.ms-powerpoint",
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ]
+            content_type in document_types
+            or content_type.startswith(
+                "text/"
+            )
         ):
 
-            encoded_file = base64.b64encode(
-                file_bytes
-            ).decode("utf-8")
+            encoded_file = (
+                base64.b64encode(
+                    file_bytes
+                ).decode("utf-8")
+            )
 
             file_data = (
                 f"data:{content_type};base64,"
@@ -666,59 +713,81 @@ async def chat_upload(
                         "role": "user",
                         "content": [
                             {
-                                "type": "input_text",
-                                "text": user_question
+                                "type":
+                                    "input_text",
+                                "text":
+                                    user_question,
                             },
                             {
-                                "type": "input_file",
-                                "filename": filename,
-                                "file_data": file_data
-                            }
-                        ]
+                                "type":
+                                    "input_file",
+                                "filename":
+                                    filename,
+                                "file_data":
+                                    file_data,
+                            },
+                        ],
                     }
-                ]
+                ],
             )
 
-            answer = response.output_text
+            answer = (
+                response.output_text
+            )
 
             return {
-                "answer": answer,
-                "filename": filename,
-                "file_type": content_type,
-                "illustration": None
+                "answer":
+                    answer,
+                "filename":
+                    filename,
+                "file_type":
+                    content_type,
+                "illustration":
+                    None,
             }
 
-        # ----------------------------------------------------
-        # VIDEO
-        # ----------------------------------------------------
 
-        if content_type.startswith("video/"):
+        # ====================================================
+        # VIDEO
+        # ====================================================
+
+        if content_type.startswith(
+            "video/"
+        ):
 
             return {
                 "answer": (
-                    "The video was received successfully, but "
-                    "video frame analysis is not enabled yet. "
-                    "The next backend update will extract video "
-                    "frames and send them to the AI for analysis."
+                    "The video was received successfully, "
+                    "but video frame analysis is not enabled "
+                    "yet. Video analysis will be added in "
+                    "the next backend update."
                 ),
-                "filename": filename,
-                "file_type": content_type,
-                "illustration": None
+                "filename":
+                    filename,
+                "file_type":
+                    content_type,
+                "illustration":
+                    None,
             }
 
-        # ----------------------------------------------------
-        # UNSUPPORTED FILE
-        # ----------------------------------------------------
+
+        # ====================================================
+        # UNSUPPORTED
+        # ====================================================
 
         return {
             "answer": (
-                f"The file '{filename}' was uploaded successfully, "
-                f"but this file type ({content_type}) is not "
-                f"supported for AI analysis yet."
+                f"The file '{filename}' was uploaded "
+                f"successfully, but this file type "
+                f"({content_type}) is not supported "
+                f"for AI analysis yet."
             ),
-            "filename": filename,
-            "file_type": content_type,
-            "illustration": None
+            "filename":
+                filename,
+            "file_type":
+                content_type,
+            "illustration":
+                None,
         }
 
     except Exception as error:
@@ -731,7 +800,7 @@ async def chat_upload(
         raise HTTPException(
             status_code=500,
             detail=(
-                "The AI assistant could not analyze "
-                "the uploaded file."
-            )
+                "The AI assistant could not "
+                "analyze the uploaded file."
+            ),
         )
