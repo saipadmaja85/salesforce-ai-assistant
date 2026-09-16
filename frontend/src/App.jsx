@@ -13,12 +13,12 @@ import {
 // --------------------------------------------------
 
 const firebaseConfig = {
-  apiKey: "PASTE_YOUR_EXISTING_FIREBASE_WEB_API_KEY",
+  apiKey: "AIzaSyDJu1Zp5QqAMBN-Jt4FjE5V6CVgZNQJtHg",
   authDomain: "salesforce-ai-assistant-98aad.firebaseapp.com",
   projectId: "salesforce-ai-assistant-98aad",
   storageBucket: "salesforce-ai-assistant-98aad.firebasestorage.app",
   messagingSenderId: "2876872987",
-  appId: "PASTE_YOUR_EXISTING_FIREBASE_APP_ID",
+  appId: "1:2876872987:web:83cff45c3be2d0a20b1bbe",
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
