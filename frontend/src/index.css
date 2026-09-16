@@ -207,3 +207,20 @@ body {
   overflow-x: hidden !important;
 }
 
+
+@media (max-width: 900px) {
+  .headerActions {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  .headerActions button {
+    max-width: 100% !important;
+  }
+}
+
