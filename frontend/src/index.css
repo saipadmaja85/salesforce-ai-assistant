@@ -109,3 +109,53 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Mobile responsive layout */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  #root {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  header {
+    width: 100% !important;
+  }
+
+  main {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    padding: 24px 16px !important;
+  }
+
+  .robotColumn {
+    width: 100% !important;
+    max-width: 100% !important;
+    order: 1 !important;
+  }
+
+  .heroContent {
+    width: 100% !important;
+    max-width: 100% !important;
+    order: 2 !important;
+    box-sizing: border-box !important;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
