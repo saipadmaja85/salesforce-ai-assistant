@@ -1435,6 +1435,10 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
     marginTop: "14px",
+    padding: "0",
+    outline: "none",
+    boxShadow: "none",
+    appearance: "none",
   },
 
   authDivider: {
