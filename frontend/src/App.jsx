@@ -4,6 +4,9 @@ import {
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
@@ -46,9 +49,15 @@ function App() {
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [conversationHistory, setConversationHistory] = useState([]);
   const [illustration, setIllustration] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  const [authMode, setAuthMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
@@ -112,6 +121,50 @@ function App() {
       setMessage(
         "Unable to sign in. Please check your Firebase configuration."
       );
+    }
+  };
+
+  const handleEmailLogin = async (email, password) => {
+    try {
+      setMessage("");
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Email login error:", error);
+      setMessage(error.code === "auth/invalid-credential"
+        ? "Invalid email or password."
+        : "Unable to login. Please check your details.");
+    }
+  };
+
+  const handleSignUp = async (email, password, confirmPassword) => {
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setMessage("");
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Sign up error:", error);
+      setMessage(error.code === "auth/email-already-in-use"
+        ? "An account already exists with this email."
+        : "Unable to create account. Please check your details.");
+    }
+  };
+
+  const handleForgotPassword = async (email) => {
+    if (!email) {
+      setMessage("Please enter your email address first.");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setMessage("Password reset email sent. Please check your inbox.");
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setMessage("Unable to send password reset email. Please check your email.");
     }
   };
 
@@ -310,9 +363,18 @@ function App() {
         );
       }
 
-      setAnswer(
-        data.answer || "No answer returned."
-      );
+      const aiAnswer = data.answer || "No answer returned.";
+
+      setAnswer(aiAnswer);
+
+      setConversationHistory((previous) => [
+        ...previous,
+        {
+          question: finalQuestion,
+          answer: aiAnswer,
+          timestamp: new Date().toLocaleString(),
+        },
+      ]);
 
       setIllustration(
         data.illustration || null
@@ -467,26 +529,135 @@ function App() {
       <div style={styles.signInPage}>
         <div style={styles.signInCard}>
           <h1 style={styles.signInTitle}>Salesforce AI Assistant</h1>
+
           <p style={styles.signInSubtitle}>
             AI Assistant for Technology & Salesforce
           </p>
 
-          <h2 style={styles.signInHeading}>Welcome</h2>
-          <p style={styles.signInText}>
-            Sign in with Google to continue to your AI assistant.
-          </p>
+          <div style={styles.authTabs}>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode("login");
+                setMessage("");
+              }}
+              style={{
+                ...styles.authTab,
+                ...(authMode === "login" ? styles.authTabActive : {}),
+              }}
+            >
+              Login
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode("signup");
+                setMessage("");
+              }}
+              style={{
+                ...styles.authTab,
+                ...(authMode === "signup" ? styles.authTabActive : {}),
+              }}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          {authMode === "login" ? (
+            <>
+              <h2 style={styles.signInHeading}>Welcome Back</h2>
+
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.authInput}
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.authInput}
+              />
+
+              <button
+                type="button"
+                onClick={() => handleEmailLogin(email, password)}
+                style={styles.authPrimaryButton}
+              >
+                Login
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleForgotPassword(email)}
+                style={styles.forgotButton}
+              >
+                Forgot password?
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 style={styles.signInHeading}>Create Account</h2>
+
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.authInput}
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.authInput}
+              />
+
+              <input
+                type="password"
+                placeholder="Retype password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                style={styles.authInput}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleSignUp(email, password, confirmPassword)
+                }
+                style={styles.authPrimaryButton}
+              >
+                Create Account
+              </button>
+            </>
+          )}
+
+          <div style={styles.authDivider}>
+            <span>OR</span>
+          </div>
 
           <button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={handleLogin}
             style={styles.googleButton}
-            disabled={authLoading}
           >
-            🔐 Continue with Google
+            Continue with Google
           </button>
 
+          {message && (
+            <p style={styles.authMessage}>{message}</p>
+          )}
+
           <p style={styles.signInSecure}>
-            🔒 Secure Google authentication
+            🔒 Secure authentication powered by Firebase
           </p>
         </div>
       </div>
@@ -872,6 +1043,71 @@ function App() {
           </section>
         )}
 
+        {conversationHistory.length > 0 && (
+          <section style={styles.documentCard}>
+            <div style={styles.documentHeader}>
+              <div>
+                <h2 style={styles.documentTitle}>📄 Conversation Document</h2>
+                <p style={styles.documentSubtitle}>
+                  Your questions and AI answers are collected here.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                style={styles.documentButton}
+                onClick={() => {
+                  const content = conversationHistory
+                    .map(
+                      (item, index) =>
+                        `Question ${index + 1}\n${item.question}\n\nAI Answer\n${item.answer}\n\nDate: ${item.timestamp}\n\n--------------------------------\n`
+                    )
+                    .join("\n");
+
+                  const blob = new Blob([content], {
+                    type: "text/plain;charset=utf-8",
+                  });
+
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = "Salesforce-AI-Conversation.txt";
+                  link.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                ⬇️ Download Document
+              </button>
+            </div>
+
+            <div style={styles.documentContent}>
+              {conversationHistory.map((item, index) => (
+                <div key={`${item.timestamp}-${index}`} style={styles.documentEntry}>
+                  <div style={styles.documentQuestion}>
+                    Question {index + 1}
+                  </div>
+
+                  <div style={styles.documentQuestionText}>
+                    {item.question}
+                  </div>
+
+                  <div style={styles.documentAnswer}>
+                    AI Answer
+                  </div>
+
+                  <div style={styles.documentAnswerText}>
+                    {item.answer}
+                  </div>
+
+                  <div style={styles.documentDate}>
+                    {item.timestamp}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* FEATURES */}
 
         <section style={styles.features}>
@@ -1132,6 +1368,89 @@ const styles = {
     lineHeight: "1.6",
   },
 
+  authTabs: {
+    display: "flex",
+    width: "100%",
+    marginBottom: "28px",
+    padding: "4px",
+    background: "#f1f5f9",
+    borderRadius: "12px",
+  },
+
+  authTab: {
+    flex: 1,
+    border: "none",
+    background: "transparent",
+    color: "#64748b",
+    padding: "12px",
+    borderRadius: "9px",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+
+  authTabActive: {
+    background: "#ffffff",
+    color: "#2563eb",
+    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.08)",
+  },
+
+  authInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "14px 16px",
+    marginBottom: "14px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "10px",
+    background: "#ffffff",
+    color: "#0f172a",
+    fontSize: "15px",
+    outline: "none",
+  },
+
+  authPrimaryButton: {
+    width: "100%",
+    border: "none",
+    borderRadius: "10px",
+    padding: "14px 20px",
+    marginTop: "4px",
+    background: "#2563eb",
+    color: "#ffffff",
+    fontSize: "16px",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+
+  forgotButton: {
+    border: "none",
+    background: "transparent",
+    color: "#2563eb",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    marginTop: "14px",
+  },
+
+  authDivider: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "22px 0",
+    color: "#94a3b8",
+    fontSize: "13px",
+    fontWeight: "600",
+  },
+
+  authMessage: {
+    margin: "16px 0 0",
+    padding: "10px 12px",
+    borderRadius: "8px",
+    background: "#fef2f2",
+    color: "#b91c1c",
+    fontSize: "14px",
+    lineHeight: "1.4",
+  },
+
   googleButton: {
     width: "100%",
     border: "none",
@@ -1150,6 +1469,97 @@ const styles = {
     fontSize: "13px",
   },
 
+
+  documentCard: {
+    width: "100%",
+    marginTop: "28px",
+    padding: "24px",
+    boxSizing: "border-box",
+    borderRadius: "18px",
+    background: "#ffffff",
+    border: "1px solid #dbe4f0",
+    boxShadow: "0 8px 30px rgba(15, 23, 42, 0.06)",
+  },
+
+  documentHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+    marginBottom: "20px",
+  },
+
+  documentTitle: {
+    margin: "0",
+    color: "#0f172a",
+    fontSize: "21px",
+    fontWeight: "700",
+  },
+
+  documentSubtitle: {
+    margin: "6px 0 0",
+    color: "#64748b",
+    fontSize: "14px",
+  },
+
+  documentButton: {
+    border: "none",
+    borderRadius: "10px",
+    padding: "11px 16px",
+    background: "#2563eb",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+
+  documentContent: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+  },
+
+  documentEntry: {
+    padding: "18px",
+    borderRadius: "12px",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+  },
+
+  documentQuestion: {
+    color: "#2563eb",
+    fontSize: "13px",
+    fontWeight: "700",
+    marginBottom: "6px",
+  },
+
+  documentQuestionText: {
+    color: "#0f172a",
+    fontSize: "15px",
+    lineHeight: "1.6",
+    marginBottom: "16px",
+  },
+
+  documentAnswer: {
+    color: "#475569",
+    fontSize: "13px",
+    fontWeight: "700",
+    marginBottom: "6px",
+  },
+
+  documentAnswerText: {
+    color: "#1e293b",
+    fontSize: "15px",
+    lineHeight: "1.7",
+    whiteSpace: "pre-wrap",
+  },
+
+  documentDate: {
+    marginTop: "14px",
+    color: "#94a3b8",
+    fontSize: "12px",
+  },
 
   page: {
     minHeight: "100vh",
