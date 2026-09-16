@@ -61,6 +61,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "https://frontend-git-main-salesforce21.vercel.app",
         "https://frontend-rho-liart-ck2le9peci.vercel.app",
         "https://www.salesforce-ai-assistant.com",
     ],
