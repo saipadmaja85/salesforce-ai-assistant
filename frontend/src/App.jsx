@@ -981,17 +981,13 @@ function App() {
               styles.heroDescription
             }
           >
-            Ask questions about
-            Salesforce Admin,
-            Development, Testing,
-            Apex, LWC, CPQ, Sales
-            Cloud, Service Cloud
-            and more.
+           
+            Ask questions about any technology like Salesforce,
+            ServiceNow, SAP, Python, Java and more.
           </p>
         </section>
 
         {/* QUESTION BOX */}
-
         <section
           style={
             styles.questionCard
