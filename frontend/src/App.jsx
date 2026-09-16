@@ -459,6 +459,41 @@ function App() {
   }
 
   // ==================================================
+  // SIGN IN PAGE
+  // ==================================================
+
+  if (!user) {
+    return (
+      <div style={styles.signInPage}>
+        <div style={styles.signInCard}>
+          <h1 style={styles.signInTitle}>Salesforce AI Assistant</h1>
+          <p style={styles.signInSubtitle}>
+            AI Assistant for Technology & Salesforce
+          </p>
+
+          <h2 style={styles.signInHeading}>Welcome</h2>
+          <p style={styles.signInText}>
+            Sign in with Google to continue to your AI assistant.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            style={styles.googleButton}
+            disabled={authLoading}
+          >
+            🔐 Continue with Google
+          </button>
+
+          <p style={styles.signInSecure}>
+            🔒 Secure Google authentication
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================================================
   // MAIN UI
   // ==================================================
 
@@ -1051,6 +1086,71 @@ function formatAnswer(text) {
 // ==================================================
 
 const styles = {
+  signInPage: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+    background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #dbeafe 100%)",
+  },
+
+  signInCard: {
+    width: "100%",
+    maxWidth: "460px",
+    padding: "44px 36px",
+    borderRadius: "24px",
+    background: "#ffffff",
+    boxShadow: "0 20px 60px rgba(15, 23, 42, 0.12)",
+    textAlign: "center",
+  },
+
+  signInTitle: {
+    margin: "0",
+    color: "#0f172a",
+    fontSize: "30px",
+    fontWeight: "800",
+  },
+
+  signInSubtitle: {
+    margin: "10px 0 32px",
+    color: "#475569",
+    fontSize: "16px",
+  },
+
+  signInHeading: {
+    margin: "0 0 10px",
+    color: "#0f172a",
+    fontSize: "24px",
+    fontWeight: "700",
+  },
+
+  signInText: {
+    margin: "0 0 24px",
+    color: "#475569",
+    fontSize: "15px",
+    lineHeight: "1.6",
+  },
+
+  googleButton: {
+    width: "100%",
+    border: "none",
+    borderRadius: "12px",
+    padding: "15px 20px",
+    background: "#2563eb",
+    color: "#ffffff",
+    fontSize: "16px",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+
+  signInSecure: {
+    margin: "18px 0 0",
+    color: "#64748b",
+    fontSize: "13px",
+  },
+
+
   page: {
     minHeight: "100vh",
     background:
